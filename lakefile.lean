@@ -98,9 +98,9 @@ target libleansdl pkg : FilePath := do
 
   let sdlO ← sdl.o.fetch
   let name := nameToStaticLib "leansdl"
-  -- manually copy the DLLs we need to .lake/build/bin/ for the game to work
-  IO.FS.createDirAll ".lake/build/bin/"
-  let dstDir := ".lake/build/bin/"
+  -- manually copy the DLLs we need to .lake/build/lib/ for the game to work
+  IO.FS.createDirAll ".lake/build/lib/"
+  let dstDir := ".lake/build/lib/"
   let sdlBinariesDir : FilePath := "vendor/SDL/build/"
   for entry in (← sdlBinariesDir.readDir) do
     if entry.path.extension != none then
@@ -116,7 +116,7 @@ target libleansdl pkg : FilePath := do
 
     for entry in (← lakeBinariesDir.readDir) do
       if entry.path.extension == some "dll" then
-       copyFile entry.path (".lake/build/bin/" / entry.path.fileName.get!)
+       copyFile entry.path (".lake/build/lib/" / entry.path.fileName.get!)
   else
   -- binaries for Lean/Lake itself, like libgmp are on a different place on Linux
     let lakeBinariesDir := (← IO.appPath).parent.get!.parent.get! / "lib"
@@ -124,7 +124,7 @@ target libleansdl pkg : FilePath := do
 
     for entry in (← lakeBinariesDir.readDir) do
       if entry.path.extension != none then
-       copyFile entry.path (".lake/build/bin/" / entry.path.fileName.get!)
+       copyFile entry.path (".lake/build/lib/" / entry.path.fileName.get!)
 
   buildStaticLib (pkg.staticLibDir / name) #[sdlO]
 
