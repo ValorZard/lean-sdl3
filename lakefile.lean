@@ -128,10 +128,19 @@ target libleansdl pkg : FilePath := do
 
   buildStaticLib (pkg.staticLibDir / name) #[sdlO]
 
+target libSDL3 pkg : Dynlib := do
+  return .pure {
+    name := "SDL3"
+    path := pkg.dir  / "vendor" / "SDL" / "build" / nameToSharedLib "SDL3"
+  }
+
+target libSDL3Image pkg : Dynlib := do
+  return .pure {
+    name := "SDL3_image"
+    path := pkg.dir  / "vendor" / "SDL" / "build" / nameToSharedLib "SDL3_image"
+  }
+
 @[default_target]
 lean_lib SDL where
   moreLinkObjs := #[libleansdl]
-  moreLinkArgs := if Platform.isWindows then
-    #["vendor/SDL/build/SDL3.dll", "vendor/SDL_image/build/SDL3_image.dll"]
-  else
-    #["vendor/SDL/build/libSDL3.so", "vendor/SDL_image/build/libSDL3_image.so", "-Wl,--allow-shlib-undefined", "-Wl,-rpath=$ORIGIN"]
+  moreLinkLibs := #[libSDL3, libSDL3Image]
