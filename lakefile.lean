@@ -15,20 +15,24 @@ input_file sdl.c where
   path := "c" / "sdl.c"
   text := true
 
-target sdl.o pkg : FilePath := do
-  let srcJob ← sdl.c.fetch
-  let oFile := pkg.buildDir / "c" / "sdl.o"
-  let leanInclude := (<- getLeanIncludeDir).toString
-
-  let sdlInclude := pkg.dir / "vendor" / "SDL/include/"
-  let sdlImageInclude := pkg.dir / "vendor" / "SDL_image/include/"
-  buildO oFile srcJob #[] #["-fPIC", s!"-I{sdlInclude}", s!"-I{sdlImageInclude}", "-D_REENTRANT", s!"-I{leanInclude}"] compiler
-
 target sdlDir pkg : FilePath := do
   return .pure (pkg.dir / "vendor" / "SDL")
 
 target sdlImageDir pkg : FilePath := do
   return .pure (pkg.dir / "vendor" / "SDL_image")
+
+target sdl.o pkg : FilePath := do
+  let srcJob ← sdl.c.fetch
+  let oFile := pkg.buildDir / "c" / "sdl.o"
+
+  let leanInclude := (<- getLeanIncludeDir).toString
+
+  let sdlRepoDir : FilePath ← (← sdlDir.fetch).await
+  let sdlImageDir : FilePath ← (← sdlImageDir.fetch).await
+  let sdlInclude := sdlRepoDir / "include/"
+  let sdlImageInclude := sdlImageDir / "include/"
+
+  buildO oFile srcJob #[] #["-fPIC", s!"-I{sdlInclude}", s!"-I{sdlImageInclude}", "-D_REENTRANT", s!"-I{leanInclude}"] compiler
 
 target libSDL3 pkg : Dynlib := Job.async do
   let sdlRepoDir : FilePath ← (← sdlDir.fetch).await
@@ -167,5 +171,6 @@ target libleansdl pkg : FilePath := do
 lean_lib SDL where
   moreLinkObjs := #[libleansdl]
   -- make sure to copy these link args into whatever project is using this library in order for it to work
-  moreLinkArgs := #["-Wl,--allow-shlib-undefined", "-Wl,-rpath=$ORIGIN"]
+  -- This is because without "-rpath=$ORIGIN", the Linux executable will not load dynlibs next to the executable (i.e., the SDL ones you've copied there).
+  moreLinkArgs := if !Platform.isWindows then #["-Wl,--allow-shlib-undefined", "-Wl,-rpath=$ORIGIN"] else #[]
   moreLinkLibs := #[libSDL3, libSDL3Image]
