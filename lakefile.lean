@@ -19,6 +19,7 @@ target sdl.o pkg : FilePath := do
   let leanInclude := (<- getLeanIncludeDir).toString
   let sdlInclude := pkg.dir / "vendor" / "SDL/include/"
   let sdlImageInclude := pkg.dir / "vendor" / "SDL_image/include/"
+  -- TODO: at some point, we should figure out a better way to set the C compiler
   let compiler := if Platform.isWindows then "gcc" else "cc"
   buildO oFile srcJob #[] #["-fPIC", s!"-I{sdlInclude}", s!"-I{sdlImageInclude}", "-D_REENTRANT", s!"-I{leanInclude}"] compiler
 
