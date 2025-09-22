@@ -136,7 +136,8 @@ target libSDL3 pkg : Dynlib := do
 target libSDL3Image pkg : Dynlib := do
   return .pure {
     name := "SDL3_image"
-    path := pkg.dir  / "vendor" / "SDL" / "build" / nameToSharedLib "SDL3_image"
+    path := pkg.dir  / "vendor" / "SDL_image" / "build" / nameToSharedLib "SDL3_image"
+
   }
 
 @[default_target]
