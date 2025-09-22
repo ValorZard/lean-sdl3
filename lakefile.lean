@@ -166,4 +166,5 @@ target libleansdl pkg : FilePath := do
 @[default_target]
 lean_lib SDL where
   moreLinkObjs := #[libleansdl]
+  moreLinkArgs := #["-Wl,--allow-shlib-undefined"]
   moreLinkLibs := #[libSDL3, libSDL3Image]
