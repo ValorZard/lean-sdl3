@@ -4,10 +4,7 @@ open System Lake DSL
 package SDL3
 
 def sdlGitRepo : String := "https://github.com/libsdl-org/SDL.git"
-def sdlRepoDir : String := "vendor/SDL"
-
 def sdlImageGitRepo : String := "https://github.com/libsdl-org/SDL_image.git"
-def sdlImageRepoDir : String := "vendor/SDL_image"
 
 -- clone from a stable branch to avoid breakages
 def sdlBranch : String := "release-3.2.x"
@@ -20,18 +17,20 @@ target sdl.o pkg : FilePath := do
   let srcJob ← sdl.c.fetch
   let oFile := pkg.buildDir / "c" / "sdl.o"
   let leanInclude := (<- getLeanIncludeDir).toString
-  let sdlInclude := "vendor/SDL/include/"
-  let sdlImageInclude := "vendor/SDL_image/include/"
+  let sdlInclude := pkg.dir / "vendor" / "SDL/include/"
+  let sdlImageInclude := pkg.dir / "vendor" / "SDL_image/include/"
   let compiler := if Platform.isWindows then "gcc" else "cc"
   buildO oFile srcJob #[] #["-fPIC", s!"-I{sdlInclude}", s!"-I{sdlImageInclude}", "-D_REENTRANT", s!"-I{leanInclude}"] compiler
 
 target libleansdl pkg : FilePath := do
 -- Helper function to run command and handle errors
 -- Clone the repos if they don't exist
+  let sdlRepoDir : FilePath := pkg.dir / "vendor" / "SDL"
+  let sdlImageRepoDir : FilePath :=  pkg.dir / "vendor" / "SDL_image"
   let sdlExists ← System.FilePath.pathExists sdlRepoDir
   if !sdlExists then
     IO.println "Cloning SDL"
-    let sdlClone ← IO.Process.output { cmd := "git", args := #["clone", "-b", sdlBranch, "--single-branch", "--depth", "1", "--recursive", sdlGitRepo, sdlRepoDir] }
+    let sdlClone ← IO.Process.output { cmd := "git", args := #["clone", "-b", sdlBranch, "--single-branch", "--depth", "1", "--recursive", sdlGitRepo, sdlRepoDir.toString] }
     if sdlClone.exitCode != 0 then
       IO.println s!"Error cloning SDL: {sdlClone.stderr}"
     else
@@ -41,7 +40,7 @@ target libleansdl pkg : FilePath := do
   let sdlImageExists ← System.FilePath.pathExists sdlImageRepoDir
   if !sdlImageExists then
     IO.println "Cloning SDL_image"
-    let sdlImageClone ← IO.Process.output { cmd := "git", args := #["clone", "-b", sdlBranch, "--single-branch", "--depth", "1", "--recursive", sdlImageGitRepo, sdlImageRepoDir] }
+    let sdlImageClone ← IO.Process.output { cmd := "git", args := #["clone", "-b", sdlBranch, "--single-branch", "--depth", "1", "--recursive", sdlImageGitRepo, sdlImageRepoDir.toString] }
     if sdlImageClone.exitCode != 0 then
       IO.println s!"Error cloning SDL_image: {sdlImageClone.stderr}"
     else
@@ -53,10 +52,10 @@ target libleansdl pkg : FilePath := do
 -- We also need to make sure we are using a system provided C compiler, as the one that comes with Lean is missing important headers
   IO.println "Building SDL"
 -- Create build directory if it doesn't exist
-  let sdlBuildDirExists ← System.FilePath.pathExists (sdlRepoDir ++ "/build")
+  let sdlBuildDirExists ← System.FilePath.pathExists (sdlRepoDir / "build")
   if !sdlBuildDirExists then
     let compiler := if Platform.isWindows then "gcc" else "cc"
-    let configureSdlBuild ← IO.Process.output { cmd := "cmake", args := #["-S", sdlRepoDir, "-B", sdlRepoDir ++ "/build", "-DBUILD_SHARED_LIBS=ON", "-DCMAKE_BUILD_TYPE=Release", s!"-DCMAKE_C_COMPILER={compiler}"] }
+    let configureSdlBuild ← IO.Process.output { cmd := "cmake", args := #["-S", sdlRepoDir.toString, "-B", (sdlRepoDir / "build").toString, "-DBUILD_SHARED_LIBS=ON", "-DCMAKE_BUILD_TYPE=Release", s!"-DCMAKE_C_COMPILER={compiler}"] }
     if configureSdlBuild.exitCode != 0 then
       IO.println s!"Error configuring SDL: {configureSdlBuild.stderr}"
     else
@@ -65,7 +64,7 @@ target libleansdl pkg : FilePath := do
   else
     IO.println "SDL build directory already exists, skipping configuration step"
 -- now actually build SDL once we've configured it
-  let buildSdl ← IO.Process.output { cmd := "cmake", args :=  #["--build", sdlRepoDir ++ "/build", "--config", "Release",] }
+  let buildSdl ← IO.Process.output { cmd := "cmake", args :=  #["--build", (sdlRepoDir / "build").toString, "--config", "Release"] }
   if buildSdl.exitCode != 0 then
     IO.println s!"Error building SDL: {buildSdl.exitCode}"
     IO.println buildSdl.stderr
@@ -75,12 +74,12 @@ target libleansdl pkg : FilePath := do
 -- Build SDL_Image
   IO.println "Building SDL_image"
 -- Create SDL_Image build directory if it doesn't exist
-  let sdlImageBuildDirExists ← System.FilePath.pathExists (sdlImageRepoDir ++ "/build")
+  let sdlImageBuildDirExists ← System.FilePath.pathExists (sdlImageRepoDir / "build")
   if !sdlImageBuildDirExists then
     let currentDir ← IO.currentDir
     let sdlConfigPath := currentDir / sdlRepoDir / "build"
     let compiler := if Platform.isWindows then "gcc" else "cc"
-    let configureSdlImageBuild ← IO.Process.output { cmd := "cmake", args :=  #["-S", sdlImageRepoDir, "-B", sdlImageRepoDir ++ "/build", s!"-DSDL3_DIR={sdlConfigPath}", "-DBUILD_SHARED_LIBS=ON", "-DCMAKE_BUILD_TYPE=Release", s!"-DCMAKE_C_COMPILER={compiler}"] }
+    let configureSdlImageBuild ← IO.Process.output { cmd := "cmake", args :=  #["-S", sdlImageRepoDir.toString, "-B", (sdlImageRepoDir / "build").toString, s!"-DSDL3_DIR={sdlConfigPath}", "-DBUILD_SHARED_LIBS=ON", "-DCMAKE_BUILD_TYPE=Release", s!"-DCMAKE_C_COMPILER={compiler}"] }
     if configureSdlImageBuild.exitCode != 0 then
       IO.println s!"Error configuring SDL_image: {configureSdlImageBuild.stderr}"
     else
@@ -89,7 +88,7 @@ target libleansdl pkg : FilePath := do
   else
     IO.println "SDL_image build directory already exists, skipping configuration step"
 -- now actually build SDL_image once we've configured it
-  let buildSdlImage ← IO.Process.output { cmd := "cmake", args := #["--build", sdlImageRepoDir ++ "/build", "--config", "Release"] }
+  let buildSdlImage ← IO.Process.output { cmd := "cmake", args := #["--build", (sdlImageRepoDir / "build").toString, "--config", "Release"] }
   if buildSdlImage.exitCode != 0 then
     IO.println s!"Error building SDL_image: {buildSdlImage.stderr}"
   else
