@@ -77,8 +77,7 @@ target libleansdl pkg : FilePath := do
 -- Create SDL_Image build directory if it doesn't exist
   let sdlImageBuildDirExists ← System.FilePath.pathExists (sdlImageRepoDir / "build")
   if !sdlImageBuildDirExists then
-    let currentDir ← IO.currentDir
-    let sdlConfigPath := currentDir / sdlRepoDir / "build"
+    let sdlConfigPath := sdlRepoDir / "build"
     let compiler := if Platform.isWindows then "gcc" else "cc"
     let configureSdlImageBuild ← IO.Process.output { cmd := "cmake", args :=  #["-S", sdlImageRepoDir.toString, "-B", (sdlImageRepoDir / "build").toString, s!"-DSDL3_DIR={sdlConfigPath}", "-DBUILD_SHARED_LIBS=ON", "-DCMAKE_BUILD_TYPE=Release", s!"-DCMAKE_C_COMPILER={compiler}"] }
     if configureSdlImageBuild.exitCode != 0 then
@@ -99,13 +98,13 @@ target libleansdl pkg : FilePath := do
   let sdlO ← sdl.o.fetch
   let name := nameToStaticLib "leansdl"
   -- manually copy the DLLs we need to .lake/build/lib/ for the game to work
-  IO.FS.createDirAll ".lake/build/lib/"
-  let dstDir := ".lake/build/lib/"
-  let sdlBinariesDir : FilePath := "vendor/SDL/build/"
+  IO.FS.createDirAll (pkg.dir / ".lake/build/lib/")
+  let dstDir := pkg.dir / ".lake/build/lib/"
+  let sdlBinariesDir : FilePath := pkg.dir / "vendor" / "SDL" / "build/"
   for entry in (← sdlBinariesDir.readDir) do
     if entry.path.extension != none then
       copyFile entry.path (dstDir / entry.path.fileName.get!)
-  let sdlImageBinariesDir : FilePath := "vendor/SDL_image/build/"
+  let sdlImageBinariesDir : FilePath := pkg.dir / "vendor" / "SDL_image" / "build/"
   for entry in (← sdlImageBinariesDir.readDir) do
     if entry.path.extension != none then
       copyFile entry.path (dstDir / entry.path.fileName.get!)
@@ -116,7 +115,7 @@ target libleansdl pkg : FilePath := do
 
     for entry in (← lakeBinariesDir.readDir) do
       if entry.path.extension == some "dll" then
-       copyFile entry.path (".lake/build/lib/" / entry.path.fileName.get!)
+       copyFile entry.path (pkg.dir / (".lake/build/lib/" / entry.path.fileName.get!))
   else
   -- binaries for Lean/Lake itself, like libgmp are on a different place on Linux
     let lakeBinariesDir := (← IO.appPath).parent.get!.parent.get! / "lib"
@@ -124,7 +123,7 @@ target libleansdl pkg : FilePath := do
 
     for entry in (← lakeBinariesDir.readDir) do
       if entry.path.extension != none then
-       copyFile entry.path (".lake/build/lib/" / entry.path.fileName.get!)
+       copyFile entry.path (pkg.dir / (".lake/build/lib/" / entry.path.fileName.get!))
 
   buildStaticLib (pkg.staticLibDir / name) #[sdlO]
 
