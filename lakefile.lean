@@ -107,7 +107,7 @@ target libSDL3Image pkg : Dynlib := Job.async do
 
 target commonCopy : FilePath := do
   -- manually copy the DLLs we need to .lake/build/bin/ in the root directory for the game to work
-  let dstDir := ((<- getRootPackage).binDir / ".lake/build/bin/")
+  let dstDir := ((<- getRootPackage).binDir)
   IO.FS.createDirAll dstDir
   return .pure dstDir
 
@@ -130,6 +130,7 @@ target copySdlImage : Unit := do
   return pure ()
 
 target copyLeanRuntime : Unit := do
+  let dstDir : FilePath := (←(← commonCopy.fetch).await)
   if Platform.isWindows then
     -- binaries for Lean/Lake itself for the executable to run standalone
     let lakeBinariesDir := (← IO.appPath).parent.get!
@@ -137,7 +138,7 @@ target copyLeanRuntime : Unit := do
 
     for entry in (← lakeBinariesDir.readDir) do
       if entry.path.extension == some "dll" then
-       copyFile entry.path ((<- getRootPackage).binDir / entry.path.fileName.get!)
+       copyFile entry.path (dstDir / entry.path.fileName.get!)
   else
   -- binaries for Lean/Lake itself, like libgmp are on a different place on Linux
     let lakeBinariesDir := (← IO.appPath).parent.get!.parent.get! / "lib"
@@ -145,7 +146,7 @@ target copyLeanRuntime : Unit := do
 
     for entry in (← lakeBinariesDir.readDir) do
       if entry.path.extension != none then
-       copyFile entry.path ((<- getRootPackage).binDir / entry.path.fileName.get!)
+       copyFile entry.path (dstDir / entry.path.fileName.get!)
   return pure ()
 
 @[default_target]
@@ -154,7 +155,9 @@ target libleansdl pkg : FilePath := do
   discard (← libSDL3Image.fetch).await
   discard (← copySdl.fetch).await
   discard (← copySdlImage.fetch).await
-  discard (← copyLeanRuntime.fetch).await
+  -- We shouldn't need to copy the Lean runtime every time we build the library
+  -- because the Lean Runtime is supposed to get statically linked already by default
+  --discard (← copyLeanRuntime.fetch).await
 
   let sdlO ← sdl.o.fetch
   let name := nameToStaticLib "leansdl"
