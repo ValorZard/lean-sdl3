@@ -8,6 +8,8 @@ def sdlImageGitRepo : String := "https://github.com/libsdl-org/SDL_image.git"
 
 -- clone from a stable branch to avoid breakages
 def sdlBranch : String := "release-3.2.x"
+-- TODO: at some point, we should figure out a better way to set the C compiler
+def compiler := if Platform.isWindows then "gcc" else "cc"
 
 input_file sdl.c where
   path := "c" / "sdl.c"
@@ -19,16 +21,16 @@ target sdl.o pkg : FilePath := do
   let leanInclude := (<- getLeanIncludeDir).toString
   let sdlInclude := pkg.dir / "vendor" / "SDL/include/"
   let sdlImageInclude := pkg.dir / "vendor" / "SDL_image/include/"
-  -- TODO: at some point, we should figure out a better way to set the C compiler
-  let compiler := if Platform.isWindows then "gcc" else "cc"
   buildO oFile srcJob #[] #["-fPIC", s!"-I{sdlInclude}", s!"-I{sdlImageInclude}", "-D_REENTRANT", s!"-I{leanInclude}"] compiler
 
-@[default_target]
-target libleansdl pkg : FilePath := do
--- Helper function to run command and handle errors
--- Clone the repos if they don't exist
-  let sdlRepoDir : FilePath := pkg.dir / "vendor" / "SDL"
-  let sdlImageRepoDir : FilePath :=  pkg.dir / "vendor" / "SDL_image"
+target sdlDir pkg : FilePath := do
+  return .pure (pkg.dir / "vendor" / "SDL")
+
+target sdlImageDir pkg : FilePath := do
+  return .pure (pkg.dir / "vendor" / "SDL_image")
+
+target libSDL3 pkg : Dynlib := Job.async do
+  let sdlRepoDir : FilePath ← (<- sdlDir.fetch).await
   let sdlExists ← System.FilePath.pathExists sdlRepoDir
   if !sdlExists then
     IO.println "Cloning SDL"
@@ -38,7 +40,35 @@ target libleansdl pkg : FilePath := do
     else
       IO.println "SDL cloned successfully"
       IO.println sdlClone.stdout
+  IO.println "Building SDL"
+  -- Create build directory if it doesn't exist
+  let sdlBuildDirExists ← System.FilePath.pathExists (sdlRepoDir / "build")
+  if !sdlBuildDirExists then
+    let configureSdlBuild ← IO.Process.output { cmd := "cmake", args := #["-S", sdlRepoDir.toString, "-B", (sdlRepoDir / "build").toString, "-DBUILD_SHARED_LIBS=ON", "-DCMAKE_BUILD_TYPE=Release", s!"-DCMAKE_C_COMPILER={compiler}"] }
+    if configureSdlBuild.exitCode != 0 then
+      IO.println s!"Error configuring SDL: {configureSdlBuild.stderr}"
+    else
+      IO.println "SDL configured successfully"
+      IO.println configureSdlBuild.stdout
+  else
+    IO.println "SDL build directory already exists, skipping configuration step"
+  -- now actually build SDL once we've configured it
+  let buildSdl ← IO.Process.output { cmd := "cmake", args :=  #["--build", (sdlRepoDir / "build").toString, "--config", "Release"] }
+  if buildSdl.exitCode != 0 then
+    IO.println s!"Error building SDL: {buildSdl.exitCode}"
+    IO.println buildSdl.stderr
+  else
+    IO.println "SDL built successfully"
+    IO.println buildSdl.stdout
+  -- Return built dynlib
+  return {
+    name := "SDL3"
+    path := pkg.dir  / "vendor" / "SDL" / "build" / nameToSharedLib "SDL3"
+  }
 
+target libSDL3Image pkg : Dynlib := Job.async do
+  let sdlRepoDir : FilePath ← (<- sdlDir.fetch).await
+  let sdlImageRepoDir : FilePath ← (<- sdlImageDir.fetch).await
   let sdlImageExists ← System.FilePath.pathExists sdlImageRepoDir
   if !sdlImageExists then
     IO.println "Cloning SDL_image"
@@ -48,39 +78,11 @@ target libleansdl pkg : FilePath := do
     else
       IO.println "SDL_image cloned successfully"
       IO.println sdlImageClone.stdout
-
--- Build the repos with cmake
--- SDL itself needs to be built before SDL_image, as the latter depends on the former
--- We also need to make sure we are using a system provided C compiler, as the one that comes with Lean is missing important headers
-  IO.println "Building SDL"
--- Create build directory if it doesn't exist
-  let sdlBuildDirExists ← System.FilePath.pathExists (sdlRepoDir / "build")
-  if !sdlBuildDirExists then
-    let compiler := if Platform.isWindows then "gcc" else "cc"
-    let configureSdlBuild ← IO.Process.output { cmd := "cmake", args := #["-S", sdlRepoDir.toString, "-B", (sdlRepoDir / "build").toString, "-DBUILD_SHARED_LIBS=ON", "-DCMAKE_BUILD_TYPE=Release", s!"-DCMAKE_C_COMPILER={compiler}"] }
-    if configureSdlBuild.exitCode != 0 then
-      IO.println s!"Error configuring SDL: {configureSdlBuild.stderr}"
-    else
-      IO.println "SDL configured successfully"
-      IO.println configureSdlBuild.stdout
-  else
-    IO.println "SDL build directory already exists, skipping configuration step"
--- now actually build SDL once we've configured it
-  let buildSdl ← IO.Process.output { cmd := "cmake", args :=  #["--build", (sdlRepoDir / "build").toString, "--config", "Release"] }
-  if buildSdl.exitCode != 0 then
-    IO.println s!"Error building SDL: {buildSdl.exitCode}"
-    IO.println buildSdl.stderr
-  else
-    IO.println "SDL built successfully"
-    IO.println buildSdl.stdout
--- Build SDL_Image
   IO.println "Building SDL_image"
--- Create SDL_Image build directory if it doesn't exist
+  -- Create build directory if it doesn't exist
   let sdlImageBuildDirExists ← System.FilePath.pathExists (sdlImageRepoDir / "build")
   if !sdlImageBuildDirExists then
-    let sdlConfigPath := sdlRepoDir / "build"
-    let compiler := if Platform.isWindows then "gcc" else "cc"
-    let configureSdlImageBuild ← IO.Process.output { cmd := "cmake", args :=  #["-S", sdlImageRepoDir.toString, "-B", (sdlImageRepoDir / "build").toString, s!"-DSDL3_DIR={sdlConfigPath}", "-DBUILD_SHARED_LIBS=ON", "-DCMAKE_BUILD_TYPE=Release", s!"-DCMAKE_C_COMPILER={compiler}"] }
+    let configureSdlImageBuild ← IO.Process.output { cmd := "cmake", args :=  #["-S", sdlImageRepoDir.toString, "-B", (sdlImageRepoDir / "build").toString, s!"-DSDL3_DIR={sdlRepoDir / "build"}", "-DBUILD_SHARED_LIBS=ON", "-DCMAKE_BUILD_TYPE=Release", s!"-DCMAKE_C_COMPILER={compiler}"] }
     if configureSdlImageBuild.exitCode != 0 then
       IO.println s!"Error configuring SDL_image: {configureSdlImageBuild.stderr}"
     else
@@ -88,13 +90,25 @@ target libleansdl pkg : FilePath := do
       IO.println configureSdlImageBuild.stdout
   else
     IO.println "SDL_image build directory already exists, skipping configuration step"
--- now actually build SDL_image once we've configured it
-  let buildSdlImage ← IO.Process.output { cmd := "cmake", args := #["--build", (sdlImageRepoDir / "build").toString, "--config", "Release"] }
+  -- now actually build SDL_image once we've configured it
+  let buildSdlImage ← IO.Process.output { cmd := "cmake", args :=  #["--build", (sdlImageRepoDir / "build").toString, "--config", "Release"] }
   if buildSdlImage.exitCode != 0 then
-    IO.println s!"Error building SDL_image: {buildSdlImage.stderr}"
+    IO.println s!"Error building SDL_image: {buildSdlImage.exitCode}"
+    IO.println buildSdlImage.stderr
   else
     IO.println "SDL_image built successfully"
     IO.println buildSdlImage.stdout
+  -- Return built dynlib
+  return {
+    name := "SDL3_image"
+    path := pkg.dir  / "vendor" / "SDL_image" / "build" / nameToSharedLib "SDL3_image"
+  }
+
+
+@[default_target]
+target libleansdl pkg : FilePath := do
+  discard (← libSDL3.fetch).await
+  discard (← libSDL3Image.fetch).await
 
   let sdlO ← sdl.o.fetch
   let name := nameToStaticLib "leansdl"
@@ -127,19 +141,6 @@ target libleansdl pkg : FilePath := do
        copyFile entry.path (pkg.dir / (".lake/build/lib/" / entry.path.fileName.get!))
 
   buildStaticLib (pkg.staticLibDir / name) #[sdlO]
-
-target libSDL3 pkg : Dynlib := do
-  return .pure {
-    name := "SDL3"
-    path := pkg.dir  / "vendor" / "SDL" / "build" / nameToSharedLib "SDL3"
-  }
-
-target libSDL3Image pkg : Dynlib := do
-  return .pure {
-    name := "SDL3_image"
-    path := pkg.dir  / "vendor" / "SDL_image" / "build" / nameToSharedLib "SDL3_image"
-
-  }
 
 @[default_target]
 lean_lib SDL where
