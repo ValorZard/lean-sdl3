@@ -13,3 +13,7 @@ lean_exe «lean-sdl-test» where
   -- also, moreLinkArgs doesn't get inherited by the parent project
   moreLinkArgs := if !System.Platform.isWindows then #["-Wl,--allow-shlib-undefined", "-Wl,-rpath=$ORIGIN"] else #[]
 ```
+
+If you want to see an example project that uses these bindings, check this out:
+
+https://github.com/ValorZard/lean-sdl-test
