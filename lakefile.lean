@@ -166,5 +166,6 @@ target libleansdl pkg : FilePath := do
 @[default_target]
 lean_lib SDL where
   moreLinkObjs := #[libleansdl]
-  moreLinkArgs := #["-Wl,--allow-shlib-undefined"]
+  -- make sure to copy these link args into whatever project is using this library in order for it to work
+  moreLinkArgs := #["-Wl,--allow-shlib-undefined", "-Wl,-rpath=$ORIGIN"]
   moreLinkLibs := #[libSDL3, libSDL3Image]
