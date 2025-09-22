@@ -22,6 +22,7 @@ target sdl.o pkg : FilePath := do
   let compiler := if Platform.isWindows then "gcc" else "cc"
   buildO oFile srcJob #[] #["-fPIC", s!"-I{sdlInclude}", s!"-I{sdlImageInclude}", "-D_REENTRANT", s!"-I{leanInclude}"] compiler
 
+@[default_target]
 target libleansdl pkg : FilePath := do
 -- Helper function to run command and handle errors
 -- Clone the repos if they don't exist
@@ -130,8 +131,7 @@ target libleansdl pkg : FilePath := do
 @[default_target]
 lean_lib SDL where
   moreLinkObjs := #[libleansdl]
-  -- we have to add the rpath to tell the compiler where all of the libraries are
   moreLinkArgs := if Platform.isWindows then
     #["vendor/SDL/build/SDL3.dll", "vendor/SDL_image/build/SDL3_image.dll"]
   else
-    #["vendor/SDL/build/libSDL3.so", "vendor/SDL_image/build/libSDL3_image.so", "-Wl,--allow-shlib-undefined", "-Wl,-rpath=$ORIGIN", "-Wl,-rpath=$ORIGIN"]
+    #["vendor/SDL/build/libSDL3.so", "vendor/SDL_image/build/libSDL3_image.so", "-Wl,--allow-shlib-undefined", "-Wl,-rpath=$ORIGIN"]
