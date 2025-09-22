@@ -19,6 +19,7 @@ target sdl.o pkg : FilePath := do
   let srcJob ← sdl.c.fetch
   let oFile := pkg.buildDir / "c" / "sdl.o"
   let leanInclude := (<- getLeanIncludeDir).toString
+
   let sdlInclude := pkg.dir / "vendor" / "SDL/include/"
   let sdlImageInclude := pkg.dir / "vendor" / "SDL_image/include/"
   buildO oFile srcJob #[] #["-fPIC", s!"-I{sdlInclude}", s!"-I{sdlImageInclude}", "-D_REENTRANT", s!"-I{leanInclude}"] compiler
@@ -30,7 +31,7 @@ target sdlImageDir pkg : FilePath := do
   return .pure (pkg.dir / "vendor" / "SDL_image")
 
 target libSDL3 pkg : Dynlib := Job.async do
-  let sdlRepoDir : FilePath ← (<- sdlDir.fetch).await
+  let sdlRepoDir : FilePath ← (← sdlDir.fetch).await
   let sdlExists ← System.FilePath.pathExists sdlRepoDir
   if !sdlExists then
     IO.println "Cloning SDL"
@@ -104,25 +105,31 @@ target libSDL3Image pkg : Dynlib := Job.async do
     path := pkg.dir  / "vendor" / "SDL_image" / "build" / nameToSharedLib "SDL3_image"
   }
 
+target commonCopy : FilePath := do
+  -- manually copy the DLLs we need to .lake/build/bin/ in the root directory for the game to work
+  let dstDir := ((<- getRootPackage).binDir / ".lake/build/bin/")
+  IO.FS.createDirAll dstDir
+  return .pure dstDir
 
-@[default_target]
-target libleansdl pkg : FilePath := do
-  discard (← libSDL3.fetch).await
-  discard (← libSDL3Image.fetch).await
-
-  let sdlO ← sdl.o.fetch
-  let name := nameToStaticLib "leansdl"
-  -- manually copy the DLLs we need to .lake/build/lib/ for the game to work
-  IO.FS.createDirAll (pkg.dir / ".lake/build/lib/")
-  let dstDir := pkg.dir / ".lake/build/lib/"
-  let sdlBinariesDir : FilePath := pkg.dir / "vendor" / "SDL" / "build/"
+target copySdl : Unit := do
+  let dstDir : FilePath := (←(← commonCopy.fetch).await)
+  let sdlDirPath ← (← sdlDir.fetch).await
+  let sdlBinariesDir : FilePath := sdlDirPath / "build"
   for entry in (← sdlBinariesDir.readDir) do
     if entry.path.extension != none then
       copyFile entry.path (dstDir / entry.path.fileName.get!)
-  let sdlImageBinariesDir : FilePath := pkg.dir / "vendor" / "SDL_image" / "build/"
+  return pure ()
+
+target copySdlImage : Unit := do
+  let dstDir : FilePath := (←(← commonCopy.fetch).await)
+  let sdlImageDirPath ← (← sdlImageDir.fetch).await
+  let sdlImageBinariesDir : FilePath := sdlImageDirPath / "build"
   for entry in (← sdlImageBinariesDir.readDir) do
     if entry.path.extension != none then
       copyFile entry.path (dstDir / entry.path.fileName.get!)
+  return pure ()
+
+target copyLeanRuntime : Unit := do
   if Platform.isWindows then
     -- binaries for Lean/Lake itself for the executable to run standalone
     let lakeBinariesDir := (← IO.appPath).parent.get!
@@ -130,7 +137,7 @@ target libleansdl pkg : FilePath := do
 
     for entry in (← lakeBinariesDir.readDir) do
       if entry.path.extension == some "dll" then
-       copyFile entry.path (pkg.dir / (".lake/build/lib/" / entry.path.fileName.get!))
+       copyFile entry.path ((<- getRootPackage).binDir / entry.path.fileName.get!)
   else
   -- binaries for Lean/Lake itself, like libgmp are on a different place on Linux
     let lakeBinariesDir := (← IO.appPath).parent.get!.parent.get! / "lib"
@@ -138,8 +145,19 @@ target libleansdl pkg : FilePath := do
 
     for entry in (← lakeBinariesDir.readDir) do
       if entry.path.extension != none then
-       copyFile entry.path (pkg.dir / (".lake/build/lib/" / entry.path.fileName.get!))
+       copyFile entry.path ((<- getRootPackage).binDir / entry.path.fileName.get!)
+  return pure ()
 
+@[default_target]
+target libleansdl pkg : FilePath := do
+  discard (← libSDL3.fetch).await
+  discard (← libSDL3Image.fetch).await
+  discard (← copySdl.fetch).await
+  discard (← copySdlImage.fetch).await
+  discard (← copyLeanRuntime.fetch).await
+
+  let sdlO ← sdl.o.fetch
+  let name := nameToStaticLib "leansdl"
   buildStaticLib (pkg.staticLibDir / name) #[sdlO]
 
 @[default_target]
