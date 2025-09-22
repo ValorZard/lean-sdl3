@@ -1,38 +1,14 @@
 # Lean SDL3 Bindings
 
+How to use:
+Add this library as a dependency in your lakefile.lean (Not .toml)
+in your default target in your project, make sure you do something like this
 
-## Run
-
-### Unix (Linux, Mac)
-
-```bash
-# Install elan if this is your first time using Lean
-curl https://elan.lean-lang.org/elan-init.sh -sSf | sh
-
-# Clone project and submodules (SDL3 etc)
-git clone --recurse-submodules https://github.com/oOo0oOo/LeanDoomed.git
-cd LeanDoomed
-
-# Build dependencies
-chmod +x ./build_sdl_and_friends.sh
-sudo ./build_sdl_and_friends.sh
-
-# Run the "game"
-lake exe LeanDoomed
+```lean
+@[default_target]
+lean_exe «lean-sdl-test» where
+  root := `Main
+  -- this is necessary because on Linux, binaries don't automatically get picked up by the executable unless you set the rpath
+  -- also, moreLinkArgs doesn't get inherited by the parent project
+  moreLinkArgs := if !System.Platform.isWindows then #["-Wl,--allow-shlib-undefined", "-Wl,-rpath=$ORIGIN"] else #[]
 ```
-
-### Windows (MSYS2 or WSL)
-
-On Windows, use MSYS2 or WSL!
-
-**IMPORTANT**: FOR MSYS2, MAKE SURE YOU ARE USING THE "CLANG" SHELL TO RUN EVERYTHING!
-
-For more information on MSYS2, see: https://github.com/leanprover/lean4/blob/master/doc/make/msys2.md
-
-Next, follow the instructions for Unix above.
-
-## License & Attribution
-
-MIT
-
-Wall texture by [FacadeGaikan](https://opengameart.org/node/31075), licensed under CC0.
