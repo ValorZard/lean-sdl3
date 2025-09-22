@@ -2,7 +2,8 @@
 
 How to use:
 Add this library as a dependency in your lakefile.lean (Not .toml)
-in your default target in your project, make sure you do something like this
+
+In your default target in your project, make sure you do something like this
 
 ```lean
 @[default_target]
