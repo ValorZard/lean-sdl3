@@ -4,10 +4,14 @@ open System Lake DSL
 package SDL3
 
 def sdlGitRepo : String := "https://github.com/libsdl-org/SDL.git"
+-- pin to a specific commit to avoid breakages
+def sdlGitRev : String := "f3a9f66292d49322652be01ee93412d0e9b74f0b"
 def sdlImageGitRepo : String := "https://github.com/libsdl-org/SDL_image.git"
+def sdlImageGitRev : String := "d354e3d5146117f8b2f14096800965e56f9f7bfc"
 def sdlTtfGitRepo : String := "https://github.com/libsdl-org/SDL_ttf.git"
--- clone from a stable branch to avoid breakages
-def sdlBranch : String := "release-3.2.x"
+def sdlTtfGitRev : String := "6b6bd588e8646360b08f624fb601cc2ec75c6ada"
+def sdlMixerGitRepo : String := "https://github.com/libsdl-org/SDL_mixer.git"
+def sdlMixerGitRev : String := "5cdf029bae982df1d6c210f915fc151a616d982f"
 -- TODO: at some point, we should figure out a better way to set the C compiler
 def compiler := if Platform.isWindows then "gcc" else "cc"
 
@@ -24,6 +28,9 @@ target sdlImageDir pkg : FilePath := do
 target sdlTtfDir pkg : FilePath := do
   return .pure (pkg.dir / "vendor" / "SDL_ttf")
 
+target sdlMixerDir pkg : FilePath := do
+  return .pure (pkg.dir / "vendor" / "SDL_mixer")
+
 target sdl.o pkg : FilePath := do
   let srcJob ← sdl.c.fetch
   let oFile := pkg.buildDir / "c" / "sdl.o"
@@ -33,18 +40,21 @@ target sdl.o pkg : FilePath := do
   let sdlRepoDir : FilePath ← (← sdlDir.fetch).await
   let sdlImageDir : FilePath ← (← sdlImageDir.fetch).await
   let sdlTtfDir : FilePath ← (← sdlTtfDir.fetch).await
+  let sdlMixerDir : FilePath ← (← sdlMixerDir.fetch).await
+
   let sdlInclude := sdlRepoDir / "include/"
   let sdlImageInclude := sdlImageDir / "include/"
   let sdlTtfInclude := sdlTtfDir / "include/"
+  let sdlMixerInclude := sdlMixerDir / "include/"
 
-  buildO oFile srcJob #[] #["-fPIC", s!"-I{sdlInclude}", s!"-I{sdlImageInclude}", s!"-I{sdlTtfInclude}", "-D_REENTRANT", s!"-I{leanInclude}"] compiler
+  buildO oFile srcJob #[] #["-fPIC", s!"-I{sdlInclude}", s!"-I{sdlImageInclude}", s!"-I{sdlTtfInclude}", s!"-I{sdlMixerInclude}", "-D_REENTRANT", s!"-I{leanInclude}"] compiler
 
 target libSDL3 : Dynlib := Job.async do
   let sdlRepoDir : FilePath ← (← sdlDir.fetch).await
   let sdlExists ← System.FilePath.pathExists sdlRepoDir
   if !sdlExists then
     logInfo "Cloning SDL"
-    let sdlClone ← IO.Process.output { cmd := "git", args := #["clone", "-b", sdlBranch, "--single-branch", "--depth", "1", "--recursive", sdlGitRepo, sdlRepoDir.toString] }
+    let sdlClone ← IO.Process.output { cmd := "git", args := #["clone", "--revision", sdlGitRev, "--single-branch", "--depth", "1", "--recursive", sdlGitRepo, sdlRepoDir.toString] }
     if sdlClone.exitCode != 0 then
       logError s!"Error cloning SDL: {sdlClone.stderr}"
     else
@@ -82,7 +92,7 @@ target libSDL3Image : Dynlib := Job.async do
   let sdlImageExists ← System.FilePath.pathExists sdlImageRepoDir
   if !sdlImageExists then
     logInfo "Cloning SDL_image"
-    let sdlImageClone ← IO.Process.output { cmd := "git", args := #["clone", "-b", sdlBranch, "--single-branch", "--depth", "1", "--recursive", sdlImageGitRepo, sdlImageRepoDir.toString] }
+    let sdlImageClone ← IO.Process.output { cmd := "git", args := #["clone", "--revision", sdlImageGitRev, "--single-branch", "--depth", "1", "--recursive", sdlImageGitRepo, sdlImageRepoDir.toString] }
     if sdlImageClone.exitCode != 0 then
       logError s!"Error cloning SDL_image: {sdlImageClone.stderr}"
     else
@@ -120,7 +130,7 @@ target libSDL3Ttf : Dynlib := Job.async do
   let sdlTtfExists ← System.FilePath.pathExists sdlTtfRepoDir
   if !sdlTtfExists then
     logInfo "Cloning SDL_ttf"
-    let sdlTtfClone ← IO.Process.output { cmd := "git", args := #["clone", "-b", sdlBranch, "--single-branch", "--depth", "1", "--recursive", sdlTtfGitRepo, sdlTtfRepoDir.toString] }
+    let sdlTtfClone ← IO.Process.output { cmd := "git", args := #["clone", "--revision", sdlTtfGitRev, "--single-branch", "--depth", "1", "--recursive", sdlTtfGitRepo, sdlTtfRepoDir.toString] }
     if sdlTtfClone.exitCode != 0 then
       logError s!"Error cloning SDL_ttf: {sdlTtfClone.stderr}"
     else
@@ -131,7 +141,20 @@ target libSDL3Ttf : Dynlib := Job.async do
   let sdlTtfBuildDirExists ← System.FilePath.pathExists (sdlTtfRepoDir / "build")
   if !sdlTtfBuildDirExists then
     -- tell SDL_ttf to vendor its own dependencies
-    let configureSdlTtfBuild ← IO.Process.output { cmd := "cmake", args :=  #["-S", sdlTtfRepoDir.toString, "-B", (sdlTtfRepoDir / "build").toString, s!"-DSDL3_DIR={sdlRepoDir / "build"}", "-DBUILD_SHARED_LIBS=ON", "-DCMAKE_BUILD_TYPE=Release", s!"-DCMAKE_C_COMPILER={compiler}", s!"-DSDLTTF_VENDORED=true"] }
+    let configureSdlTtfBuild ← IO.Process.output {
+        cmd := "cmake",
+        args :=  #[
+          "-S",
+          sdlTtfRepoDir.toString,
+          "-B",
+          (sdlTtfRepoDir / "build").toString,
+          s!"-DSDL3_DIR={sdlRepoDir / "build"}",
+          "-DBUILD_SHARED_LIBS=ON",
+          "-DCMAKE_BUILD_TYPE=Release",
+          s!"-DCMAKE_C_COMPILER={compiler}",
+          s!"-DSDLTTF_VENDORED=true"
+        ]
+      }
     if configureSdlTtfBuild.exitCode != 0 then
       logError s!"Error configuring SDL_ttf: {configureSdlTtfBuild.stderr}"
     else
@@ -152,6 +175,59 @@ target libSDL3Ttf : Dynlib := Job.async do
     name := "SDL3_ttf"
     path := sdlTtfRepoDir / "build" / nameToSharedLib "SDL3_ttf"
   }
+target libSDL3Mixer : Dynlib := Job.async do
+  let sdlRepoDir : FilePath ← (← sdlDir.fetch).await
+  let sdlMixerRepoDir : FilePath ← (← sdlMixerDir.fetch).await
+
+  logInfo s!"SDL repo dir: {sdlRepoDir}"
+  logInfo "Building SDL_mixer"
+
+  let sdlMixerExists ← System.FilePath.pathExists sdlMixerRepoDir
+  if !sdlMixerExists then
+    logInfo "Cloning SDL_mixer"
+    let sdlMixerClone ← IO.Process.output { cmd := "git", args := #["clone", "--revision", sdlMixerGitRev, "--single-branch", "--depth", "1", "--recursive", sdlMixerGitRepo, sdlMixerRepoDir.toString] }
+    if sdlMixerClone.exitCode != 0 then
+      logError s!"Error cloning SDL_mixer: {sdlMixerClone.stderr}"
+    else
+      logInfo "SDL_mixer cloned successfully"
+      logInfo sdlMixerClone.stdout
+  logInfo "Building SDL_mixer"
+
+  let sdlMixerBuildDir := sdlMixerRepoDir / "build"
+  let sdlMixerBuildDirExists ← sdlMixerBuildDir.pathExists
+
+  if !sdlMixerBuildDirExists then
+    let configureSdlMixerBuild ← IO.Process.output {
+      cmd := "cmake",
+      args := #[
+        "-S", sdlMixerRepoDir.toString,
+        "-B", sdlMixerBuildDir.toString,
+        s!"-DSDL3_DIR={sdlRepoDir / "build"}",
+        "-DBUILD_SHARED_LIBS=ON",
+        "-DCMAKE_BUILD_TYPE=Release",
+        s!"-DCMAKE_C_COMPILER={compiler}",
+        s!"-DCMAKE_PREFIX_PATH={sdlRepoDir / "build"}",
+        s!"-DSDLTTF_VENDORED=true"
+      ]
+    }
+
+    if configureSdlMixerBuild.exitCode != 0 then
+      logError s!"Error configuring SDL_mixer: {configureSdlMixerBuild.stderr}"
+    logInfo "SDL_mixer configured successfully"
+  else
+    logInfo "SDL_mixer build directory already exists, skipping configuration step"
+
+  let buildSdlMixer ← IO.Process.output { cmd := "cmake", args := #["--build", sdlMixerBuildDir.toString, "--config", "Release"] }
+  if buildSdlMixer.exitCode != 0 then
+    logError s!"Error building SDL_mixer: {buildSdlMixer.exitCode}"
+    logError s!"SDL_mixer build stderr: {buildSdlMixer.stderr}"
+
+  logInfo "SDL_mixer built successfully"
+
+  return {
+    name := "SDL3_mixer"
+    path := sdlMixerRepoDir / "build" / nameToSharedLib "SDL3_mixer"
+  }
 
 def copyBinaries (sourceDir : FilePath) : FetchM (Job Unit) := do
   -- manually copy the DLLs we need to .lake/build/bin/ in the root directory for the game to work
@@ -167,20 +243,23 @@ target libleansdl pkg : FilePath := do
   discard (← libSDL3.fetch).await
   discard (← libSDL3Image.fetch).await
   discard (← libSDL3Ttf.fetch).await
+  discard (← libSDL3Mixer.fetch).await
 
   -- copy binaries to the bin directory
   let sdlDirPath ← (← sdlDir.fetch).await
   let sdlImageDirPath ← (← sdlImageDir.fetch).await
   let sdlTtfDirPath ← (← sdlTtfDir.fetch).await
+  let sdlMixerDirPath ← (← sdlMixerDir.fetch).await
   discard (<- copyBinaries sdlDirPath).await
   discard (<- copyBinaries sdlImageDirPath).await
   discard (<- copyBinaries sdlTtfDirPath).await
+  discard (<- copyBinaries sdlMixerDirPath).await
 
   let sdlO ← sdl.o.fetch
   let name := nameToStaticLib "leansdl"
   buildStaticLib (pkg.staticLibDir / name) #[sdlO]
 
-def libList : TargetArray Dynlib := #[libSDL3, libSDL3Image, libSDL3Ttf]
+def libList : TargetArray Dynlib := #[libSDL3, libSDL3Image, libSDL3Ttf, libSDL3Mixer]
 
 @[default_target]
 lean_lib SDL where

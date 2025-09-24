@@ -2,12 +2,15 @@
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_ttf/SDL_ttf.h>
+#include <SDL3_mixer/SDL_mixer.h>
 #include <lean/lean.h>
 
 static SDL_Window* g_window = NULL;
 static SDL_Renderer* g_renderer = NULL;
 static SDL_Texture* g_texture = NULL;
 static TTF_Font* font = NULL;
+static MIX_Mixer* mixer = NULL;
+static MIX_Track* track = NULL;
 
 lean_obj_res sdl_init(uint32_t flags, lean_obj_arg w) {
     int32_t result = SDL_Init(flags);
@@ -18,6 +21,22 @@ lean_obj_res sdl_ttf_init(lean_obj_arg w) {
     bool result = TTF_Init();
     return lean_io_result_mk_ok(lean_box_uint32(result));
 }
+
+lean_obj_res sdl_mixer_init(lean_obj_arg w) {
+    bool result = MIX_Init();
+    return lean_io_result_mk_ok(lean_box_uint32(result));
+}
+
+lean_obj_res sdl_create_mixer(lean_obj_arg w) {
+    mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, NULL);
+    if (mixer == NULL) {
+        const char* error = SDL_GetError();
+        SDL_Log("C: MIX_CreateMixerDevice failed: %s\n", error);
+        return lean_io_result_mk_ok(lean_box(0));
+    }
+    return lean_io_result_mk_ok(lean_box(1));
+}
+
 
 lean_obj_res sdl_quit(lean_obj_arg w) {
     if (g_texture) {
@@ -135,6 +154,23 @@ lean_obj_res sdl_load_font(lean_obj_arg fontname, uint32_t font_size, lean_obj_a
         SDL_Log("C: Failed to load font: %s\n", SDL_GetError());
         return lean_io_result_mk_ok(lean_box(0));
     }
+
+    return lean_io_result_mk_ok(lean_box(1));
+}
+
+// TODO: This plays the track immediatly after loading it, which should not be the case
+lean_obj_res sdl_load_track(lean_obj_arg trackname, lean_obj_arg w) {
+    MIX_Track* mixerTrack = MIX_CreateTrack(mixer);
+    const char* trackname_str = lean_string_cstr(trackname);
+    MIX_Audio* track = MIX_LoadAudio(mixer, trackname_str, false);
+    if (!track) {
+        SDL_Log("C: Failed to load track: %s\n", SDL_GetError());
+        return lean_io_result_mk_ok(lean_box(0));
+    }
+
+    // play the track (does not loop)
+    MIX_SetTrackAudio(mixerTrack, track);
+    MIX_PlayTrack(mixerTrack, 0);
 
     return lean_io_result_mk_ok(lean_box(1));
 }
