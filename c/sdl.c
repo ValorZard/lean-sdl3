@@ -156,9 +156,17 @@ lean_obj_res sdl_render_text(lean_obj_arg text, uint32_t dst_x, uint32_t dst_y, 
         SDL_Log("C: Failed to create text texture: %s\n", SDL_GetError());
         return lean_io_result_mk_ok(lean_box_uint32(0));
     }
-    SDL_FRect dst_rect = { (float)dst_x, (float)dst_y, (float)(text_len * 10), 20.0f }; // Approximate width
 
-    SDL_RenderTexture(g_renderer, text_texture, NULL, &dst_rect);
+    SDL_PropertiesID messageTexProps = SDL_GetTextureProperties(text_texture);
+
+    SDL_FRect text_rect = {
+            .x = (float)dst_x,
+            .y = (float)dst_y,
+            .w = (float)SDL_GetNumberProperty(messageTexProps, SDL_PROP_TEXTURE_WIDTH_NUMBER, 0),
+            .h = (float)SDL_GetNumberProperty(messageTexProps, SDL_PROP_TEXTURE_HEIGHT_NUMBER, 0)
+    };
+
+    SDL_RenderTexture(g_renderer, text_texture, NULL, &text_rect);
     return lean_io_result_mk_ok(lean_box_uint32(1));
 }
 
