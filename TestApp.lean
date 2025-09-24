@@ -38,6 +38,10 @@ def renderScene (state : EngineState) : IO Unit := do
   setColor { r := 255, g := 0, b := 0 }
   fillRect 100 100 200 200
 
+  let message := "Hello, Lean SDL!"
+  let _ ← SDL.renderText message 50 50 255 255 255 255
+  pure ()
+
 private def updateEngineState (engineState : IO.Ref EngineState) : IO Unit := do
   let state ← engineState.get
   let currentTime ← SDL.getTicks

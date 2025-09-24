@@ -127,6 +127,7 @@ lean_obj_res sdl_load_texture(lean_obj_arg filename, lean_obj_arg w) {
 
     return lean_io_result_mk_ok(lean_box(1));
 }
+
 lean_obj_res sdl_load_font(lean_obj_arg fontname, uint32_t font_size, lean_obj_arg w) {
     const char* fontname_str = lean_string_cstr(fontname);
     font = TTF_OpenFont(fontname_str, font_size);
@@ -136,6 +137,29 @@ lean_obj_res sdl_load_font(lean_obj_arg fontname, uint32_t font_size, lean_obj_a
     }
 
     return lean_io_result_mk_ok(lean_box(1));
+}
+
+// TODO: VERY inefficient text rendering, re-renders entire text each time
+lean_obj_res sdl_render_text(lean_obj_arg text, uint32_t dst_x, uint32_t dst_y, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha, lean_obj_arg w) {
+    if (!g_renderer || !font) return lean_io_result_mk_ok(lean_box_uint32(0));
+    const char* text_str = lean_string_cstr(text);
+    size_t text_len = lean_string_len(text);
+    SDL_Color color = { red, green, blue, alpha };
+    SDL_Surface* text_surface = TTF_RenderText_Blended(font, text_str, text_len, color);
+    if (!text_surface) {
+        SDL_Log("C: Failed to create text surface: %s\n", SDL_GetError());
+        return lean_io_result_mk_ok(lean_box_uint32(0));
+    }
+    SDL_Texture* text_texture = SDL_CreateTextureFromSurface(g_renderer, text_surface);
+    SDL_DestroySurface(text_surface);
+    if (!text_texture) {
+        SDL_Log("C: Failed to create text texture: %s\n", SDL_GetError());
+        return lean_io_result_mk_ok(lean_box_uint32(0));
+    }
+    SDL_FRect dst_rect = { (float)dst_x, (float)dst_y, (float)(text_len * 10), 20.0f }; // Approximate width
+
+    SDL_RenderTexture(g_renderer, text_texture, NULL, &dst_rect);
+    return lean_io_result_mk_ok(lean_box_uint32(1));
 }
 
 
