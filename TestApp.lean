@@ -72,9 +72,6 @@ partial def run : IO Unit := do
     SDL.quit
     return
 
-  unless (← SDL.loadTexture "wall.png") != 0 do
-    IO.println "Failed to load texture, using solid colors"
-
   let initialState : EngineState := {
     deltaTime := 0.0, lastTime := 0, running := true
   }

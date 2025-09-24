@@ -74,7 +74,7 @@ target libSDL3 : Dynlib := Job.async do
     path := sdlRepoDir / "build" / nameToSharedLib "SDL3"
   }
 
-target libSDL3Image pkg : Dynlib := Job.async do
+target libSDL3Image : Dynlib := Job.async do
   let sdlRepoDir : FilePath ← (<- sdlDir.fetch).await
   let sdlImageRepoDir : FilePath ← (<- sdlImageDir.fetch).await
   let sdlImageExists ← System.FilePath.pathExists sdlImageRepoDir
@@ -112,7 +112,7 @@ target libSDL3Image pkg : Dynlib := Job.async do
     path := sdlImageRepoDir / "build" / nameToSharedLib "SDL3_image"
   }
 
-target libSDL3Ttf pkg : Dynlib := Job.async do
+target libSDL3Ttf : Dynlib := Job.async do
   let sdlRepoDir : FilePath ← (<- sdlDir.fetch).await
   let sdlTtfRepoDir : FilePath ← (<- sdlTtfDir.fetch).await
   let sdlTtfExists ← System.FilePath.pathExists sdlTtfRepoDir
