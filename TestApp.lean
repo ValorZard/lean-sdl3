@@ -110,6 +110,11 @@ partial def run : IO Unit := do
     SDL.quit
     return
 
+  unless (← SDL.loadTrack "assets/In_The_Dark_Flashes.mp3") do
+    IO.println "Failed to load audio track"
+    SDL.quit
+    return
+
   let initialState : EngineState := {
     deltaTime := 0.0, lastTime := 0, running := true
     playerX := (SCREEN_WIDTH / 2), playerY := (SCREEN_HEIGHT / 2)

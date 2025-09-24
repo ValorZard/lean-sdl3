@@ -65,6 +65,9 @@ opaque loadTexture : String → IO UInt32
 @[extern "sdl_load_font"]
 opaque loadFont : String → UInt32 → IO Bool
 
+@[extern "sdl_load_track"]
+opaque loadTrack : String → IO Bool
+
 @[extern "sdl_render_texture"]
 opaque renderTexture (x : Int32) (y : Int32) (w : Int32) (h : Int32) : IO Int32
 

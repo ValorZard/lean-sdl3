@@ -158,6 +158,23 @@ lean_obj_res sdl_load_font(lean_obj_arg fontname, uint32_t font_size, lean_obj_a
     return lean_io_result_mk_ok(lean_box(1));
 }
 
+// TODO: This plays the track immediatly after loading it, which should not be the case
+lean_obj_res sdl_load_track(lean_obj_arg trackname, lean_obj_arg w) {
+    MIX_Track* mixerTrack = MIX_CreateTrack(mixer);
+    const char* trackname_str = lean_string_cstr(trackname);
+    MIX_Audio* track = MIX_LoadAudio(mixer, trackname_str, false);
+    if (!track) {
+        SDL_Log("C: Failed to load track: %s\n", SDL_GetError());
+        return lean_io_result_mk_ok(lean_box(0));
+    }
+
+    // play the track (does not loop)
+    MIX_SetTrackAudio(mixerTrack, track);
+    MIX_PlayTrack(mixerTrack, 0);
+
+    return lean_io_result_mk_ok(lean_box(1));
+}
+
 // TODO: VERY inefficient text rendering, re-renders entire text each time
 lean_obj_res sdl_render_text(lean_obj_arg text, uint32_t dst_x, uint32_t dst_y, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha, lean_obj_arg w) {
     if (!g_renderer || !font) return lean_io_result_mk_ok(lean_box_uint32(0));
