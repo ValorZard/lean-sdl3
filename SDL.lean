@@ -17,6 +17,9 @@ def SDL_SCANCODE_ESCAPE : UInt32 := 41
 @[extern "sdl_init"]
 opaque init : UInt32 → IO UInt32
 
+@[extern "sdl_ttf_init"]
+opaque ttfInit : IO Bool
+
 @[extern "sdl_quit"]
 opaque quit : IO Unit
 

@@ -32,10 +32,12 @@ target sdl.o pkg : FilePath := do
 
   let sdlRepoDir : FilePath ← (← sdlDir.fetch).await
   let sdlImageDir : FilePath ← (← sdlImageDir.fetch).await
+  let sdlTtfDir : FilePath ← (← sdlTtfDir.fetch).await
   let sdlInclude := sdlRepoDir / "include/"
   let sdlImageInclude := sdlImageDir / "include/"
+  let sdlTtfInclude := sdlTtfDir / "include/"
 
-  buildO oFile srcJob #[] #["-fPIC", s!"-I{sdlInclude}", s!"-I{sdlImageInclude}", "-D_REENTRANT", s!"-I{leanInclude}"] compiler
+  buildO oFile srcJob #[] #["-fPIC", s!"-I{sdlInclude}", s!"-I{sdlImageInclude}", s!"-I{sdlTtfInclude}", "-D_REENTRANT", s!"-I{leanInclude}"] compiler
 
 target libSDL3 : Dynlib := Job.async do
   let sdlRepoDir : FilePath ← (← sdlDir.fetch).await
@@ -151,36 +153,12 @@ target libSDL3Ttf : Dynlib := Job.async do
     path := sdlTtfRepoDir / "build" / nameToSharedLib "SDL3_ttf"
   }
 
-
-target commonCopy : FilePath := do
+def copyBinaries (sourceDir : FilePath) : FetchM (Job Unit) := do
   -- manually copy the DLLs we need to .lake/build/bin/ in the root directory for the game to work
   let dstDir := ((<- getRootPackage).binDir)
   IO.FS.createDirAll dstDir
-  return .pure dstDir
-
-target copySdl : Unit := do
-  let dstDir : FilePath := (←(← commonCopy.fetch).await)
-  let sdlDirPath ← (← sdlDir.fetch).await
-  let sdlBinariesDir : FilePath := sdlDirPath / "build"
-  for entry in (← sdlBinariesDir.readDir) do
-    if entry.path.extension != none then
-      copyFile entry.path (dstDir / entry.path.fileName.get!)
-  return pure ()
-
-target copySdlImage : Unit := do
-  let dstDir : FilePath := (←(← commonCopy.fetch).await)
-  let sdlImageDirPath ← (← sdlImageDir.fetch).await
-  let sdlImageBinariesDir : FilePath := sdlImageDirPath / "build"
-  for entry in (← sdlImageBinariesDir.readDir) do
-    if entry.path.extension != none then
-      copyFile entry.path (dstDir / entry.path.fileName.get!)
-  return pure ()
-
-target copySdlTtf : Unit := do
-  let dstDir : FilePath := (←(← commonCopy.fetch).await)
-  let sdlTtfDirPath ← (← sdlTtfDir.fetch).await
-  let sdlTtfBinariesDir : FilePath := sdlTtfDirPath / "build"
-  for entry in (← sdlTtfBinariesDir.readDir) do
+  let binariesDir : FilePath := sourceDir / "build"
+  for entry in (← binariesDir.readDir) do
     if entry.path.extension != none then
       copyFile entry.path (dstDir / entry.path.fileName.get!)
   return pure ()
@@ -190,24 +168,30 @@ target libleansdl pkg : FilePath := do
   discard (← libSDL3Image.fetch).await
   discard (← libSDL3Ttf.fetch).await
 
-  discard (← copySdl.fetch).await
-  discard (← copySdlImage.fetch).await
-  discard (← copySdlTtf.fetch).await
+  -- copy binaries to the bin directory
+  let sdlDirPath ← (← sdlDir.fetch).await
+  let sdlImageDirPath ← (← sdlImageDir.fetch).await
+  let sdlTtfDirPath ← (← sdlTtfDir.fetch).await
+  discard (<- copyBinaries sdlDirPath).await
+  discard (<- copyBinaries sdlImageDirPath).await
+  discard (<- copyBinaries sdlTtfDirPath).await
 
   let sdlO ← sdl.o.fetch
   let name := nameToStaticLib "leansdl"
   buildStaticLib (pkg.staticLibDir / name) #[sdlO]
 
+def libList : TargetArray Dynlib := #[libSDL3, libSDL3Image, libSDL3Ttf]
+
 @[default_target]
 lean_lib SDL where
   moreLinkObjs := #[libleansdl]
+  moreLinkLibs := libList
   -- make sure to copy these link args into whatever project is using this library in order for it to work
   -- This is because without "-rpath=$ORIGIN", the Linux executable will not load dynlibs next to the executable (i.e., the SDL ones you've copied there).
   moreLinkArgs := if !Platform.isWindows then #["-Wl,--allow-shlib-undefined", "-Wl,-rpath=$ORIGIN"] else #[]
-  moreLinkLibs := #[libSDL3, libSDL3Image]
 
 lean_exe «test-app» where
   root := `TestApp
   moreLinkObjs := #[libleansdl]
-  moreLinkLibs := #[libSDL3, libSDL3Image]
+  moreLinkLibs := libList
   moreLinkArgs := if !Platform.isWindows then #["-Wl,--allow-shlib-undefined", "-Wl,-rpath=$ORIGIN"] else #[]
