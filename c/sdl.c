@@ -7,6 +7,7 @@
 static SDL_Window* g_window = NULL;
 static SDL_Renderer* g_renderer = NULL;
 static SDL_Texture* g_texture = NULL;
+static TTF_Font* font = NULL;
 
 lean_obj_res sdl_init(uint32_t flags, lean_obj_arg w) {
     int32_t result = SDL_Init(flags);
@@ -126,6 +127,17 @@ lean_obj_res sdl_load_texture(lean_obj_arg filename, lean_obj_arg w) {
 
     return lean_io_result_mk_ok(lean_box(1));
 }
+lean_obj_res sdl_load_font(lean_obj_arg fontname, uint32_t font_size, lean_obj_arg w) {
+    const char* fontname_str = lean_string_cstr(fontname);
+    font = TTF_OpenFont(fontname_str, font_size);
+    if (!font) {
+        SDL_Log("C: Failed to load font: %s\n", SDL_GetError());
+        return lean_io_result_mk_ok(lean_box(0));
+    }
+
+    return lean_io_result_mk_ok(lean_box(1));
+}
+
 
 lean_obj_res sdl_render_texture_column(uint32_t dst_x, uint32_t dst_y, uint32_t dst_height, uint32_t src_x, uint32_t src_y_start, uint32_t src_y_end, lean_obj_arg w) {
     if (!g_renderer || !g_texture) return lean_io_result_mk_ok(lean_box_uint32(-1));

@@ -72,6 +72,16 @@ partial def run : IO Unit := do
     SDL.quit
     return
 
+  unless (← SDL.ttfInit) do
+    IO.println "Failed to initialize SDL_ttf"
+    SDL.quit
+    return
+
+  unless (← SDL.loadFont "assets/Inter-VariableFont.ttf" 24) do
+    IO.println "Failed to load font"
+    SDL.quit
+    return
+
   let initialState : EngineState := {
     deltaTime := 0.0, lastTime := 0, running := true
   }
