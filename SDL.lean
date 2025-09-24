@@ -59,8 +59,8 @@ opaque loadTexture : String → IO UInt32
 @[extern "sdl_load_font"]
 opaque loadFont : String → UInt32 → IO Bool
 
-@[extern "sdl_render_texture_column"]
-opaque renderTextureColumn : Int32 → Int32 → Int32 → Int32 → Int32 → Int32 → IO Int32
+@[extern "sdl_render_texture"]
+opaque renderTexture (x : Int32) (y : Int32) (w : Int32) (h : Int32) : IO Int32
 
 @[extern "sdl_render_text"]
 opaque renderText (message : String) (x : Int32) (y : Int32) (red : UInt8) (green : UInt8) (blue : UInt8) (alpha : UInt8) : IO Int32

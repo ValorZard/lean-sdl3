@@ -163,15 +163,10 @@ lean_obj_res sdl_render_text(lean_obj_arg text, uint32_t dst_x, uint32_t dst_y, 
 }
 
 
-lean_obj_res sdl_render_texture_column(uint32_t dst_x, uint32_t dst_y, uint32_t dst_height, uint32_t src_x, uint32_t src_y_start, uint32_t src_y_end, lean_obj_arg w) {
+lean_obj_res sdl_render_texture(uint32_t dst_x, uint32_t dst_y, uint32_t dst_height, uint32_t dst_width, lean_obj_arg w) {
     if (!g_renderer || !g_texture) return lean_io_result_mk_ok(lean_box_uint32(-1));
 
-    uint32_t tex_y_start = src_y_start >= 64 ? 0 : src_y_start;
-    uint32_t tex_y_end = src_y_end > 64 ? 64 : src_y_end;
-    if (tex_y_end <= tex_y_start) tex_y_end = tex_y_start + 1;
+    SDL_FRect dst_rect = { (float)dst_x, (float)dst_y, (float)dst_width, (float)dst_height };
 
-    SDL_FRect src_rect = {(float)(src_x % 64), (float)tex_y_start, 1.0f, (float)(tex_y_end - tex_y_start)};
-    SDL_FRect dst_rect = {(float)dst_x, (float)dst_y, 1.0f, (float)dst_height};
-
-    return lean_io_result_mk_ok(lean_box_uint32(SDL_RenderTexture(g_renderer, g_texture, &src_rect, &dst_rect)));
+    return lean_io_result_mk_ok(lean_box_uint32(SDL_RenderTexture(g_renderer, g_texture, NULL, &dst_rect)));
 }

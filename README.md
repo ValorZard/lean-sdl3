@@ -17,3 +17,7 @@ lean_exe «lean-sdl-test» where
 If you want to see an example project that uses these bindings, check this out:
 
 https://github.com/ValorZard/lean-sdl-test
+
+## License & Attribution
+
+MIT

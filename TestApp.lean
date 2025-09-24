@@ -38,6 +38,8 @@ def renderScene (state : EngineState) : IO Unit := do
   setColor { r := 255, g := 0, b := 0 }
   fillRect 100 100 200 200
 
+  let _ ← SDL.renderTexture 500 150 64 64
+
   let message := "Hello, Lean SDL!"
   let _ ← SDL.renderText message 50 50 255 255 255 255
   pure ()
@@ -75,6 +77,9 @@ partial def run : IO Unit := do
     IO.println "Failed to create renderer"
     SDL.quit
     return
+
+  unless (← SDL.loadTexture "assets/wall.png") != 0 do
+    IO.println "Failed to load texture, using solid colors"
 
   unless (← SDL.ttfInit) do
     IO.println "Failed to initialize SDL_ttf"
