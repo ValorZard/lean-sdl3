@@ -66,6 +66,15 @@ partial def gameLoop (engineState : IO.Ref EngineState) : IO Unit := do
   if eventType == SDL.SDL_QUIT || (← isKeyDown .Escape) then
     engineState.modify (fun s => { s with running := false })
 
+  if eventType == SDL.SDL_MOUSEBUTTONDOWN then
+    let (mouseX, mouseY) ← SDL.getMousePos
+    if ← SDL.isLeftMousePressed then
+      IO.println s!"Left click at ({mouseX}, {mouseY})"
+    if ← SDL.isRightMousePressed then
+      IO.println s!"Right click at ({mouseX}, {mouseY})"
+    if ← SDL.isMiddleMousePressed then
+      IO.println s!"Middle click at ({mouseX}, {mouseY})"
+
   let state ← engineState.get
   if state.running then
     renderScene state
