@@ -10,6 +10,8 @@ structure EngineState where
   deltaTime : Float
   lastTime : UInt32
   running : Bool
+  playerX : Int32
+  playerY : Int32
 
 def SCREEN_WIDTH : Int32 := 1280
 def SCREEN_HEIGHT : Int32 := 720
@@ -36,13 +38,26 @@ def renderScene (state : EngineState) : IO Unit := do
   let _ ← SDL.renderClear
 
   setColor { r := 255, g := 0, b := 0 }
-  fillRect 100 100 200 200
+  fillRect state.playerX state.playerY 100 100
+
+  let _ ← SDL.renderTexture 500 150 64 64
+
+  let message := "Hello, Lean SDL!"
+  let _ ← SDL.renderText message 50 50 255 255 255 255
+  pure ()
 
 private def updateEngineState (engineState : IO.Ref EngineState) : IO Unit := do
   let state ← engineState.get
   let currentTime ← SDL.getTicks
   let deltaTime := (currentTime - state.lastTime).toFloat / 1000.0
-  engineState.set { state with deltaTime, lastTime := currentTime }
+
+  let mut playerX := state.playerX
+  let mut playerY := state.playerY
+  if ← isKeyDown .A then playerX := playerX - 1
+  if ← isKeyDown .D then playerX := playerX + 1
+  if ← isKeyDown .W then playerY := playerY - 1
+  if ← isKeyDown .S then playerY := playerY + 1
+  engineState.set { state with deltaTime, lastTime := currentTime, playerX, playerY }
 
 partial def gameLoop (engineState : IO.Ref EngineState) : IO Unit := do
   updateEngineState engineState
@@ -72,11 +87,22 @@ partial def run : IO Unit := do
     SDL.quit
     return
 
-  unless (← SDL.loadTexture "wall.png") != 0 do
+  unless (← SDL.loadTexture "assets/wall.png") != 0 do
     IO.println "Failed to load texture, using solid colors"
+
+  unless (← SDL.ttfInit) do
+    IO.println "Failed to initialize SDL_ttf"
+    SDL.quit
+    return
+
+  unless (← SDL.loadFont "assets/Inter-VariableFont.ttf" 24) do
+    IO.println "Failed to load font"
+    SDL.quit
+    return
 
   let initialState : EngineState := {
     deltaTime := 0.0, lastTime := 0, running := true
+    playerX := (SCREEN_WIDTH / 2), playerY := (SCREEN_HEIGHT / 2)
   }
 
   let engineState ← IO.mkRef initialState

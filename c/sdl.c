@@ -1,21 +1,28 @@
 #include <stdint.h>
 #include <SDL3/SDL.h>
 #include <SDL3_image/SDL_image.h>
+#include <SDL3_ttf/SDL_ttf.h>
 #include <lean/lean.h>
 
 static SDL_Window* g_window = NULL;
 static SDL_Renderer* g_renderer = NULL;
-static SDL_Texture* g_wall_texture = NULL;
+static SDL_Texture* g_texture = NULL;
+static TTF_Font* font = NULL;
 
 lean_obj_res sdl_init(uint32_t flags, lean_obj_arg w) {
     int32_t result = SDL_Init(flags);
     return lean_io_result_mk_ok(lean_box_uint32(result));
 }
 
+lean_obj_res sdl_ttf_init(lean_obj_arg w) {
+    bool result = TTF_Init();
+    return lean_io_result_mk_ok(lean_box_uint32(result));
+}
+
 lean_obj_res sdl_quit(lean_obj_arg w) {
-    if (g_wall_texture) {
-        SDL_DestroyTexture(g_wall_texture);
-        g_wall_texture = NULL;
+    if (g_texture) {
+        SDL_DestroyTexture(g_texture);
+        g_texture = NULL;
     }
     if (g_renderer) {
         SDL_DestroyRenderer(g_renderer);
@@ -109,11 +116,11 @@ lean_obj_res sdl_load_texture(lean_obj_arg filename, lean_obj_arg w) {
         return lean_io_result_mk_ok(lean_box(0));
     }
 
-    if (g_wall_texture) SDL_DestroyTexture(g_wall_texture);
-    g_wall_texture = SDL_CreateTextureFromSurface(g_renderer, surface);
+    if (g_texture) SDL_DestroyTexture(g_texture);
+    g_texture = SDL_CreateTextureFromSurface(g_renderer, surface);
     SDL_DestroySurface(surface);
 
-    if (!g_wall_texture) {
+    if (!g_texture) {
         SDL_Log("C: Failed to create texture: %s\n", SDL_GetError());
         return lean_io_result_mk_ok(lean_box(0));
     }
@@ -121,15 +128,53 @@ lean_obj_res sdl_load_texture(lean_obj_arg filename, lean_obj_arg w) {
     return lean_io_result_mk_ok(lean_box(1));
 }
 
-lean_obj_res sdl_render_texture_column(uint32_t dst_x, uint32_t dst_y, uint32_t dst_height, uint32_t src_x, uint32_t src_y_start, uint32_t src_y_end, lean_obj_arg w) {
-    if (!g_renderer || !g_wall_texture) return lean_io_result_mk_ok(lean_box_uint32(-1));
+lean_obj_res sdl_load_font(lean_obj_arg fontname, uint32_t font_size, lean_obj_arg w) {
+    const char* fontname_str = lean_string_cstr(fontname);
+    font = TTF_OpenFont(fontname_str, font_size);
+    if (!font) {
+        SDL_Log("C: Failed to load font: %s\n", SDL_GetError());
+        return lean_io_result_mk_ok(lean_box(0));
+    }
 
-    uint32_t tex_y_start = src_y_start >= 64 ? 0 : src_y_start;
-    uint32_t tex_y_end = src_y_end > 64 ? 64 : src_y_end;
-    if (tex_y_end <= tex_y_start) tex_y_end = tex_y_start + 1;
+    return lean_io_result_mk_ok(lean_box(1));
+}
 
-    SDL_FRect src_rect = {(float)(src_x % 64), (float)tex_y_start, 1.0f, (float)(tex_y_end - tex_y_start)};
-    SDL_FRect dst_rect = {(float)dst_x, (float)dst_y, 1.0f, (float)dst_height};
+// TODO: VERY inefficient text rendering, re-renders entire text each time
+lean_obj_res sdl_render_text(lean_obj_arg text, uint32_t dst_x, uint32_t dst_y, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha, lean_obj_arg w) {
+    if (!g_renderer || !font) return lean_io_result_mk_ok(lean_box_uint32(0));
+    const char* text_str = lean_string_cstr(text);
+    size_t text_len = lean_string_len(text);
+    SDL_Color color = { red, green, blue, alpha };
+    SDL_Surface* text_surface = TTF_RenderText_Blended(font, text_str, text_len, color);
+    if (!text_surface) {
+        SDL_Log("C: Failed to create text surface: %s\n", SDL_GetError());
+        return lean_io_result_mk_ok(lean_box_uint32(0));
+    }
+    SDL_Texture* text_texture = SDL_CreateTextureFromSurface(g_renderer, text_surface);
+    SDL_DestroySurface(text_surface);
+    if (!text_texture) {
+        SDL_Log("C: Failed to create text texture: %s\n", SDL_GetError());
+        return lean_io_result_mk_ok(lean_box_uint32(0));
+    }
 
-    return lean_io_result_mk_ok(lean_box_uint32(SDL_RenderTexture(g_renderer, g_wall_texture, &src_rect, &dst_rect)));
+    SDL_PropertiesID messageTexProps = SDL_GetTextureProperties(text_texture);
+
+    SDL_FRect text_rect = {
+            .x = (float)dst_x,
+            .y = (float)dst_y,
+            .w = (float)SDL_GetNumberProperty(messageTexProps, SDL_PROP_TEXTURE_WIDTH_NUMBER, 0),
+            .h = (float)SDL_GetNumberProperty(messageTexProps, SDL_PROP_TEXTURE_HEIGHT_NUMBER, 0)
+    };
+
+    SDL_RenderTexture(g_renderer, text_texture, NULL, &text_rect);
+    return lean_io_result_mk_ok(lean_box_uint32(1));
+}
+
+
+lean_obj_res sdl_render_texture(uint32_t dst_x, uint32_t dst_y, uint32_t dst_height, uint32_t dst_width, lean_obj_arg w) {
+    if (!g_renderer || !g_texture) return lean_io_result_mk_ok(lean_box_uint32(-1));
+
+    SDL_FRect dst_rect = { (float)dst_x, (float)dst_y, (float)dst_width, (float)dst_height };
+
+    return lean_io_result_mk_ok(lean_box_uint32(SDL_RenderTexture(g_renderer, g_texture, NULL, &dst_rect)));
 }
