@@ -4,11 +4,14 @@ open System Lake DSL
 package SDL3
 
 def sdlGitRepo : String := "https://github.com/libsdl-org/SDL.git"
+-- pin to a specific commit to avoid breakages
+def sdlGitRev : String := "f3a9f66292d49322652be01ee93412d0e9b74f0b"
 def sdlImageGitRepo : String := "https://github.com/libsdl-org/SDL_image.git"
+def sdlImageGitRev : String := "d354e3d5146117f8b2f14096800965e56f9f7bfc"
 def sdlTtfGitRepo : String := "https://github.com/libsdl-org/SDL_ttf.git"
+def sdlTtfGitRev : String := "6b6bd588e8646360b08f624fb601cc2ec75c6ada"
 def sdlMixerGitRepo : String := "https://github.com/libsdl-org/SDL_mixer.git"
--- clone from a stable branch to avoid breakages
-def sdlBranch : String := "release-3.2.x"
+def sdlMixerGitRev : String := "5cdf029bae982df1d6c210f915fc151a616d982f"
 -- TODO: at some point, we should figure out a better way to set the C compiler
 def compiler := if Platform.isWindows then "gcc" else "cc"
 
@@ -51,7 +54,7 @@ target libSDL3 : Dynlib := Job.async do
   let sdlExists ← System.FilePath.pathExists sdlRepoDir
   if !sdlExists then
     logInfo "Cloning SDL"
-    let sdlClone ← IO.Process.output { cmd := "git", args := #["clone", "-b", sdlBranch, "--single-branch", "--depth", "1", "--recursive", sdlGitRepo, sdlRepoDir.toString] }
+    let sdlClone ← IO.Process.output { cmd := "git", args := #["clone", "--revision", sdlGitRev, "--single-branch", "--depth", "1", "--recursive", sdlGitRepo, sdlRepoDir.toString] }
     if sdlClone.exitCode != 0 then
       logError s!"Error cloning SDL: {sdlClone.stderr}"
     else
@@ -89,7 +92,7 @@ target libSDL3Image : Dynlib := Job.async do
   let sdlImageExists ← System.FilePath.pathExists sdlImageRepoDir
   if !sdlImageExists then
     logInfo "Cloning SDL_image"
-    let sdlImageClone ← IO.Process.output { cmd := "git", args := #["clone", "-b", sdlBranch, "--single-branch", "--depth", "1", "--recursive", sdlImageGitRepo, sdlImageRepoDir.toString] }
+    let sdlImageClone ← IO.Process.output { cmd := "git", args := #["clone", "--revision", sdlImageGitRev, "--single-branch", "--depth", "1", "--recursive", sdlImageGitRepo, sdlImageRepoDir.toString] }
     if sdlImageClone.exitCode != 0 then
       logError s!"Error cloning SDL_image: {sdlImageClone.stderr}"
     else
@@ -127,7 +130,7 @@ target libSDL3Ttf : Dynlib := Job.async do
   let sdlTtfExists ← System.FilePath.pathExists sdlTtfRepoDir
   if !sdlTtfExists then
     logInfo "Cloning SDL_ttf"
-    let sdlTtfClone ← IO.Process.output { cmd := "git", args := #["clone", "-b", sdlBranch, "--single-branch", "--depth", "1", "--recursive", sdlTtfGitRepo, sdlTtfRepoDir.toString] }
+    let sdlTtfClone ← IO.Process.output { cmd := "git", args := #["clone", "--revision", sdlTtfGitRev, "--single-branch", "--depth", "1", "--recursive", sdlTtfGitRepo, sdlTtfRepoDir.toString] }
     if sdlTtfClone.exitCode != 0 then
       logError s!"Error cloning SDL_ttf: {sdlTtfClone.stderr}"
     else
@@ -182,7 +185,7 @@ target libSDL3Mixer : Dynlib := Job.async do
   let sdlMixerExists ← System.FilePath.pathExists sdlMixerRepoDir
   if !sdlMixerExists then
     logInfo "Cloning SDL_mixer"
-    let sdlMixerClone ← IO.Process.output { cmd := "git", args := #["clone", "--single-branch", "--depth", "1", "--recursive", sdlMixerGitRepo, sdlMixerRepoDir.toString] }
+    let sdlMixerClone ← IO.Process.output { cmd := "git", args := #["clone", "--revision", sdlMixerGitRev, "--single-branch", "--depth", "1", "--recursive", sdlMixerGitRepo, sdlMixerRepoDir.toString] }
     if sdlMixerClone.exitCode != 0 then
       logError s!"Error cloning SDL_mixer: {sdlMixerClone.stderr}"
     else
