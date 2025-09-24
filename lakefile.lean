@@ -153,7 +153,6 @@ target copyLeanRuntime : Unit := do
        copyFile entry.path (dstDir / entry.path.fileName.get!)
   return pure ()
 
-@[default_target]
 target libleansdl pkg : FilePath := do
   discard (← libSDL3.fetch).await
   discard (← libSDL3Image.fetch).await
@@ -174,3 +173,9 @@ lean_lib SDL where
   -- This is because without "-rpath=$ORIGIN", the Linux executable will not load dynlibs next to the executable (i.e., the SDL ones you've copied there).
   moreLinkArgs := if !Platform.isWindows then #["-Wl,--allow-shlib-undefined", "-Wl,-rpath=$ORIGIN"] else #[]
   moreLinkLibs := #[libSDL3, libSDL3Image]
+
+lean_exe «test-app» where
+  root := `TestApp
+  moreLinkObjs := #[libleansdl]
+  moreLinkLibs := #[libSDL3, libSDL3Image]
+  moreLinkArgs := if !Platform.isWindows then #["-Wl,--allow-shlib-undefined", "-Wl,-rpath=$ORIGIN"] else #[]
