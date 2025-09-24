@@ -100,6 +100,16 @@ partial def run : IO Unit := do
     SDL.quit
     return
 
+  unless (← SDL.mixerInit) do
+    IO.println "Failed to initialize SDL_mixer"
+    SDL.quit
+    return
+
+  unless (← SDL.createMixer ()) != 0 do
+    IO.println "Failed to create audio mixer"
+    SDL.quit
+    return
+
   let initialState : EngineState := {
     deltaTime := 0.0, lastTime := 0, running := true
     playerX := (SCREEN_WIDTH / 2), playerY := (SCREEN_HEIGHT / 2)

@@ -20,6 +20,9 @@ opaque init : UInt32 → IO UInt32
 @[extern "sdl_ttf_init"]
 opaque ttfInit : IO Bool
 
+@[extern "sdl_mixer_init"]
+opaque mixerInit : IO Bool
+
 @[extern "sdl_quit"]
 opaque quit : IO Unit
 
@@ -28,6 +31,9 @@ opaque createWindow : String → Int32 → Int32 → UInt32 → IO UInt32
 
 @[extern "sdl_create_renderer"]
 opaque createRenderer : Unit → IO UInt32
+
+@[extern "sdl_create_mixer"]
+opaque createMixer : Unit → IO UInt32
 
 @[extern "sdl_set_render_draw_color"]
 opaque setRenderDrawColor : UInt8 → UInt8 → UInt8 → UInt8 → IO Int32
