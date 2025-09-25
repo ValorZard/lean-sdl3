@@ -7,13 +7,30 @@
 
 static SDL_Window* g_window = NULL;
 static SDL_Renderer* g_renderer = NULL;
-static SDL_Texture* g_texture = NULL;
 static TTF_Font* font = NULL;
 static MIX_Mixer* mixer = NULL;
 static MIX_Track* track = NULL;
 
+static lean_external_class * sdl_texture_external_class = NULL;
+
+// finalizer is basically the destructor for the external object
+static void sdl_texture_finalizer(void * h) {
+    // destroy the texture on finalization
+    if (h) {
+        SDL_DestroyTexture((SDL_Texture*)h);
+    }
+}
+
+static void sdl_texture_foreach(void * val, lean_obj_arg fn) {
+
+}
+
+
 lean_obj_res sdl_init(uint32_t flags, lean_obj_arg w) {
     int32_t result = SDL_Init(flags);
+
+    sdl_texture_external_class = lean_register_external_class(sdl_texture_finalizer, sdl_texture_foreach);
+    
     return lean_io_result_mk_ok(lean_box_uint32(result));
 }
 
@@ -39,10 +56,6 @@ lean_obj_res sdl_create_mixer(lean_obj_arg w) {
 
 
 lean_obj_res sdl_quit(lean_obj_arg w) {
-    if (g_texture) {
-        SDL_DestroyTexture(g_texture);
-        g_texture = NULL;
-    }
     if (g_renderer) {
         SDL_DestroyRenderer(g_renderer);
         g_renderer = NULL;
@@ -132,19 +145,20 @@ lean_obj_res sdl_load_texture(lean_obj_arg filename, lean_obj_arg w) {
     SDL_Surface* surface = IMG_Load(filename_str);
     if (!surface) {
         SDL_Log("C: Failed to load texture: %s\n", SDL_GetError());
-        return lean_io_result_mk_ok(lean_box(0));
+        return lean_io_result_mk_error(lean_box(0));
     }
 
-    if (g_texture) SDL_DestroyTexture(g_texture);
-    g_texture = SDL_CreateTextureFromSurface(g_renderer, surface);
+    SDL_Texture * g_texture = SDL_CreateTextureFromSurface(g_renderer, surface);
     SDL_DestroySurface(surface);
 
     if (!g_texture) {
         SDL_Log("C: Failed to create texture: %s\n", SDL_GetError());
-        return lean_io_result_mk_ok(lean_box(0));
+        return lean_io_result_mk_error(lean_box(0));
     }
 
-    return lean_io_result_mk_ok(lean_box(1));
+    lean_object* external_texture = lean_alloc_external(sdl_texture_external_class, g_texture);
+
+    return lean_io_result_mk_ok(external_texture);
 }
 
 lean_obj_res sdl_load_font(lean_obj_arg fontname, uint32_t font_size, lean_obj_arg w) {
@@ -207,12 +221,14 @@ lean_obj_res sdl_render_text(lean_obj_arg text, uint32_t dst_x, uint32_t dst_y, 
 }
 
 
-lean_obj_res sdl_render_texture(uint32_t dst_x, uint32_t dst_y, uint32_t dst_height, uint32_t dst_width, lean_obj_arg w) {
+lean_obj_res sdl_render_texture(lean_object * g_texture, uint32_t dst_x, uint32_t dst_y, uint32_t dst_height, uint32_t dst_width, lean_obj_arg w) {
     if (!g_renderer || !g_texture) return lean_io_result_mk_ok(lean_box_uint32(-1));
+
+    SDL_Texture* texture = (SDL_Texture*)lean_get_external_data(g_texture);
 
     SDL_FRect dst_rect = { (float)dst_x, (float)dst_y, (float)dst_width, (float)dst_height };
 
-    return lean_io_result_mk_ok(lean_box_uint32(SDL_RenderTexture(g_renderer, g_texture, NULL, &dst_rect)));
+    return lean_io_result_mk_ok(lean_box_uint32(SDL_RenderTexture(g_renderer, texture, NULL, &dst_rect)));
 }
 
 // Mouse support (caching avoids redundant SDL calls within the same frame)

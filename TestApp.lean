@@ -12,6 +12,7 @@ structure EngineState where
   running : Bool
   playerX : Int32
   playerY : Int32
+  texture : Option SDL.SDLTexture := none
 
 def SCREEN_WIDTH : Int32 := 1280
 def SCREEN_HEIGHT : Int32 := 720
@@ -40,7 +41,11 @@ def renderScene (state : EngineState) : IO Unit := do
   setColor { r := 255, g := 0, b := 0 }
   fillRect state.playerX state.playerY 100 100
 
-  let _ ← SDL.renderTexture 500 150 64 64
+  match state.texture with
+  | some texture =>
+      let _ ← SDL.renderTexture texture 500 150 64 64
+  | none =>
+      pure ()
 
   let message := "Hello, Lean SDL!"
   let _ ← SDL.renderText message 50 50 255 255 255 255
@@ -96,8 +101,7 @@ partial def run : IO Unit := do
     SDL.quit
     return
 
-  unless (← SDL.loadTexture "assets/wall.png") != 0 do
-    IO.println "Failed to load texture, using solid colors"
+  let texture := (← SDL.loadTexture? "assets/wall.png")
 
   unless (← SDL.ttfInit) do
     IO.println "Failed to initialize SDL_ttf"
@@ -127,6 +131,7 @@ partial def run : IO Unit := do
   let initialState : EngineState := {
     deltaTime := 0.0, lastTime := 0, running := true
     playerX := (SCREEN_WIDTH / 2), playerY := (SCREEN_HEIGHT / 2)
+    texture := some texture
   }
 
   let engineState ← IO.mkRef initialState
