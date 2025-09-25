@@ -103,14 +103,14 @@ partial def run : IO Unit := do
   let renderer ← try
     SDL.createRenderer window
   catch sdlError =>
-    IO.println "Failed to create renderer"
+    IO.println sdlError
     SDL.quit
     return
 
   let texture ← try
     SDL.loadImageTexture renderer "assets/wall.png"
   catch sdlError =>
-    IO.println "Failed to load texture"
+    IO.println sdlError
     SDL.quit
     return
 

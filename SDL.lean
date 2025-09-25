@@ -1,5 +1,20 @@
 namespace SDL
 
+-- All SDL errors are represented as strings, so we can just wrap them in a structure
+structure SDLError where
+  toString : String
+  deriving Nonempty
+
+instance : ToString SDLError := ⟨SDLError.toString⟩
+
+abbrev SDLIO := EIO SDLError
+
+@[inline, always_inline]
+def SDLIO.toIO (x : SDLIO α) : IO α :=
+  x.adaptExcept fun e => IO.userError s!"SDL Error: {e}"
+
+instance : MonadLift SDLIO IO := ⟨SDLIO.toIO⟩
+
 def SDL_INIT_VIDEO : UInt32 := 0x00000020
 def SDL_WINDOW_SHOWN : UInt32 := 0x00000004
 def SDL_RENDERER_ACCELERATED : UInt32 := 0x00000002
@@ -37,28 +52,28 @@ private opaque SDLWindow.nonemptyType : NonemptyType
 def SDLWindow : Type := SDLWindow.nonemptyType.type
 instance SDLWindow.instNonempty : Nonempty SDLWindow := SDLWindow.nonemptyType.property
 @[extern "sdl_create_window"]
-opaque createWindow : String → Int32 → Int32 → UInt32 → IO SDLWindow
+opaque createWindow : String → Int32 → Int32 → UInt32 → SDLIO SDLWindow
 
 private opaque SDLRenderer.nonemptyType : NonemptyType
 def SDLRenderer : Type := SDLRenderer.nonemptyType.type
 instance SDLRenderer.instNonempty : Nonempty SDLRenderer := SDLRenderer.nonemptyType.property
 @[extern "sdl_create_renderer"]
-opaque createRenderer : @& SDLWindow → IO SDLRenderer
+opaque createRenderer : @& SDLWindow → SDLIO SDLRenderer
 
 @[extern "sdl_create_mixer"]
-opaque createMixer : Unit → IO UInt32
+opaque createMixer : Unit → SDLIO UInt32
 
 @[extern "sdl_set_render_draw_color"]
-opaque setRenderDrawColor : @& SDLRenderer → UInt8 → UInt8 → UInt8 → UInt8 → IO Int32
+opaque setRenderDrawColor : @& SDLRenderer → UInt8 → UInt8 → UInt8 → UInt8 → SDLIO Int32
 
 @[extern "sdl_render_clear"]
-opaque renderClear : @& SDLRenderer → IO Int32
+opaque renderClear : @& SDLRenderer → SDLIO Int32
 
 @[extern "sdl_render_present"]
 opaque renderPresent : @& SDLRenderer → IO Unit
 
 @[extern "sdl_render_fill_rect"]
-opaque renderFillRect : @& SDLRenderer → Int32 → Int32 → Int32 → Int32 → IO Int32
+opaque renderFillRect : @& SDLRenderer → Int32 → Int32 → Int32 → Int32 → SDLIO Int32
 
 @[extern "sdl_delay"]
 opaque delay : UInt32 → IO Unit
@@ -82,50 +97,50 @@ def SDLSurface : Type := SDLSurface.nonemptyType.type
 instance SDLSurface.instNonempty : Nonempty SDLSurface := SDLSurface.nonemptyType.property
 @[extern "sdl_image_load"]
 -- @& means "by reference"
-opaque loadImage :  (path : @& System.FilePath) → IO SDLSurface
+opaque loadImage :  (path : @& System.FilePath) → SDLIO SDLSurface
 
 @[extern "sdl_create_texture_from_surface"]
 opaque createTextureFromSurface
-  (renderer : @& SDLRenderer) (surface : @& SDLSurface) : IO SDLTexture
+  (renderer : @& SDLRenderer) (surface : @& SDLSurface) : SDLIO SDLTexture
 
 def loadImageTexture
   (renderer : SDLRenderer) (path : System.FilePath)
-: IO SDLTexture := do
+: SDLIO SDLTexture := do
   let surface <- SDL.loadImage path
   createTextureFromSurface renderer surface
 
 @[extern "sdl_load_font"]
-opaque loadFont : String → UInt32 → IO Bool
+opaque loadFont : String → UInt32 → SDLIO Bool
 
 @[extern "sdl_load_track"]
-opaque loadTrack : String → IO Bool
+opaque loadTrack : String → SDLIO Bool
 
 @[extern "sdl_render_texture"]
-opaque renderTexture (renderer : @& SDLRenderer) (texture : @& SDLTexture) (x : Int32) (y : Int32) (w : Int32) (h : Int32) : IO Int32
+opaque renderTexture (renderer : @& SDLRenderer) (texture : @& SDLTexture) (x : Int32) (y : Int32) (w : Int32) (h : Int32) : SDLIO Int32
 
 @[extern "sdl_render_text"]
-opaque renderText (renderer : @& SDLRenderer) (message : @& String) (x : Int32) (y : Int32) (red : UInt8) (green : UInt8) (blue : UInt8) (alpha : UInt8) : IO Int32
+opaque renderText (renderer : @& SDLRenderer) (message : @& String) (x : Int32) (y : Int32) (red : UInt8) (green : UInt8) (blue : UInt8) (alpha : UInt8) : SDLIO Int32
 
 -- Mouse support
 @[extern "sdl_get_mouse_state"]
-opaque getMouseStateRaw : IO UInt64
+opaque getMouseStateRaw : SDLIO UInt64
 
 @[extern "sdl_set_relative_mouse_mode"]
-opaque setRelativeMouseMode (window : SDLWindow) (enabled : Bool) : IO UInt32
+opaque setRelativeMouseMode (window : SDLWindow) (enabled : Bool) : SDLIO UInt32
 
-def getMousePos : IO (Int32 × Int32) := do
+def getMousePos : SDLIO (Int32 × Int32) := do
   let packed ← getMouseStateRaw
   let x := (packed >>> 32).toUInt32.toInt32
   let y := ((packed >>> 16) &&& 0xFFFF).toUInt32.toInt32
   return (x, y)
 
-def isMousePressed (button : UInt32) : IO Bool := do
+def isMousePressed (button : UInt32) : SDLIO Bool := do
   let packed ← getMouseStateRaw
   let buttons := (packed &&& 0xFFFF).toUInt32
   return (buttons &&& button) != 0
 
-def isLeftMousePressed : IO Bool := isMousePressed SDL_BUTTON_LEFT
-def isRightMousePressed : IO Bool := isMousePressed SDL_BUTTON_RIGHT
-def isMiddleMousePressed : IO Bool := isMousePressed SDL_BUTTON_MIDDLE
+def isLeftMousePressed : SDLIO Bool := isMousePressed SDL_BUTTON_LEFT
+def isRightMousePressed : SDLIO Bool := isMousePressed SDL_BUTTON_RIGHT
+def isMiddleMousePressed : SDLIO Bool := isMousePressed SDL_BUTTON_MIDDLE
 
 end SDL

@@ -87,7 +87,7 @@ lean_obj_res sdl_mixer_init(lean_obj_arg w) {
 lean_obj_res sdl_create_mixer(lean_obj_arg w) {
     mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, NULL);
     if (mixer == NULL) {
-        return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string(SDL_GetError())));
+        return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
     }
     return lean_io_result_mk_ok(lean_box(1));
 }
@@ -112,7 +112,7 @@ lean_obj_res sdl_create_renderer(lean_object * g_window, lean_obj_arg w) {
     SDL_Window* window = (SDL_Window*)lean_get_external_data(g_window);
     SDL_Renderer* g_renderer = SDL_CreateRenderer(window, NULL);
     if (g_renderer == NULL) {
-        return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string(SDL_GetError())));
+        return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
     }
     lean_object* external_renderer = lean_alloc_external(sdl_renderer_external_class, g_renderer);
     return lean_io_result_mk_ok(external_renderer);
@@ -175,7 +175,7 @@ lean_obj_res sdl_image_load(lean_obj_arg filename, lean_obj_arg w) {
     const char* filename_str = lean_string_cstr(filename);
     SDL_Surface* surface = IMG_Load(filename_str);
     if (!surface) {
-        return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string(SDL_GetError())));
+        return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
     }
     lean_object* external_surface = lean_alloc_external(sdl_surface_external_class, surface);
     return lean_io_result_mk_ok(external_surface);
@@ -191,7 +191,7 @@ lean_obj_res sdl_create_texture_from_surface(lean_object * g_renderer, lean_obje
     SDL_Texture * g_texture = SDL_CreateTextureFromSurface(renderer, surface);
 
     if (!g_texture) {
-        return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string(SDL_GetError())));
+        return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
     }
 
     lean_object* external_texture = lean_alloc_external(sdl_texture_external_class, g_texture);
@@ -236,12 +236,12 @@ lean_obj_res sdl_render_text(lean_object* g_renderer, lean_obj_arg text, uint32_
     SDL_Color color = { red, green, blue, alpha };
     SDL_Surface* text_surface = TTF_RenderText_Blended(font, text_str, text_len, color);
     if (!text_surface) {
-        return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string(SDL_GetError())));
+        return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
     }
     SDL_Texture* text_texture = SDL_CreateTextureFromSurface(renderer, text_surface);
     SDL_DestroySurface(text_surface);
     if (!text_texture) {
-        return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string(SDL_GetError())));
+        return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
     }
 
     SDL_PropertiesID messageTexProps = SDL_GetTextureProperties(text_texture);
