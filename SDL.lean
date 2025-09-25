@@ -71,6 +71,7 @@ private opaque SDLTexture.nonemptyType : NonemptyType
 def SDLTexture : Type := SDLTexture.nonemptyType.type
 instance SDLTexture.instNonempty : Nonempty SDLTexture := SDLTexture.nonemptyType.property
 
+-- this should return an option depending on whether the texture was loaded successfully or not
 @[extern "sdl_load_texture"]
 opaque loadTexture? : String → IO SDLTexture
 

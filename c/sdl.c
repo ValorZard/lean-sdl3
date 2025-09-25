@@ -21,6 +21,7 @@ static void sdl_texture_finalizer(void * h) {
     }
 }
 
+// I'm not really sure what this is for, but it's required
 static void sdl_texture_foreach(void * val, lean_obj_arg fn) {
 
 }
@@ -29,6 +30,7 @@ static void sdl_texture_foreach(void * val, lean_obj_arg fn) {
 lean_obj_res sdl_init(uint32_t flags, lean_obj_arg w) {
     int32_t result = SDL_Init(flags);
 
+    // create reference to external class for SDL_Texture
     sdl_texture_external_class = lean_register_external_class(sdl_texture_finalizer, sdl_texture_foreach);
     
     return lean_io_result_mk_ok(lean_box_uint32(result));
@@ -145,6 +147,7 @@ lean_obj_res sdl_load_texture(lean_obj_arg filename, lean_obj_arg w) {
     SDL_Surface* surface = IMG_Load(filename_str);
     if (!surface) {
         SDL_Log("C: Failed to load texture: %s\n", SDL_GetError());
+        // return error if we failed to load the image
         return lean_io_result_mk_error(lean_box(0));
     }
 
