@@ -31,6 +31,31 @@ target sdlTtfDir pkg : FilePath := do
 target sdlMixerDir pkg : FilePath := do
   return .pure (pkg.dir / "vendor" / "SDL_mixer")
 
+def cloneGitRepo (repo : String) (rev : String) (dstDir : FilePath) : FetchM (Unit) := do
+  let doesExist ← dstDir.pathExists
+  if !doesExist then
+    logInfo s!"Cloning {repo} into {dstDir}"
+    let clone ← IO.Process.output { cmd := "git", args := #["clone", "--revision", rev, "--single-branch", "--depth", "1", "--recursive", repo, dstDir.toString] }
+    if clone.exitCode != 0 then
+      logError s!"Error cloning {repo}: {clone.stderr}"
+    else
+      logInfo s!"{repo} cloned successfully"
+      logInfo clone.stdout
+  else
+    logInfo s!"Directory {dstDir} already exists, skipping clone"
+  pure ()
+
+def copyBinaries (sourceDir : FilePath) : FetchM (Unit) := do
+  -- manually copy the DLLs we need to .lake/build/bin/ in the root directory for the game to work
+  let dstDir := ((<- getRootPackage).binDir)
+  IO.FS.createDirAll dstDir
+  logInfo s!"Copying binaries from {sourceDir} to {dstDir}"
+  let binariesDir : FilePath := sourceDir / "build"
+  for entry in (← binariesDir.readDir) do
+    if entry.path.extension != none then
+      copyFile entry.path (dstDir / entry.path.fileName.get!)
+  pure ()
+
 target sdl.o pkg : FilePath := do
   let srcJob ← sdl.c.fetch
   let oFile := pkg.buildDir / "c" / "sdl.o"
@@ -49,17 +74,8 @@ target sdl.o pkg : FilePath := do
 
   buildO oFile srcJob #[] #["-fPIC", s!"-I{sdlInclude}", s!"-I{sdlImageInclude}", s!"-I{sdlTtfInclude}", s!"-I{sdlMixerInclude}", "-D_REENTRANT", s!"-I{leanInclude}"] compiler
 
-target libSDL3 : Dynlib := Job.async do
+def buildSDL3 : FetchM (Unit) := do
   let sdlRepoDir : FilePath ← (← sdlDir.fetch).await
-  let sdlExists ← System.FilePath.pathExists sdlRepoDir
-  if !sdlExists then
-    logInfo "Cloning SDL"
-    let sdlClone ← IO.Process.output { cmd := "git", args := #["clone", "--revision", sdlGitRev, "--single-branch", "--depth", "1", "--recursive", sdlGitRepo, sdlRepoDir.toString] }
-    if sdlClone.exitCode != 0 then
-      logError s!"Error cloning SDL: {sdlClone.stderr}"
-    else
-      logInfo "SDL cloned successfully"
-      logInfo sdlClone.stdout
   logInfo "Building SDL"
   -- Create build directory if it doesn't exist
   let sdlBuildDirExists ← System.FilePath.pathExists (sdlRepoDir / "build")
@@ -80,24 +96,19 @@ target libSDL3 : Dynlib := Job.async do
   else
     logInfo "SDL built successfully"
     logInfo buildSdl.stdout
-  -- Return built dynlib
+  logInfo "SDL built successfully, copying binaries"
+  pure ()
+
+target libSDL3 : Dynlib := Job.async do
+  let sdlRepoDir : FilePath ← (← sdlDir.fetch).await
   return {
     name := "SDL3"
     path := sdlRepoDir / "build" / nameToSharedLib "SDL3"
   }
 
-target libSDL3Image : Dynlib := Job.async do
+def buildSDL3Image : FetchM (Unit) := do
   let sdlRepoDir : FilePath ← (<- sdlDir.fetch).await
   let sdlImageRepoDir : FilePath ← (<- sdlImageDir.fetch).await
-  let sdlImageExists ← System.FilePath.pathExists sdlImageRepoDir
-  if !sdlImageExists then
-    logInfo "Cloning SDL_image"
-    let sdlImageClone ← IO.Process.output { cmd := "git", args := #["clone", "--revision", sdlImageGitRev, "--single-branch", "--depth", "1", "--recursive", sdlImageGitRepo, sdlImageRepoDir.toString] }
-    if sdlImageClone.exitCode != 0 then
-      logError s!"Error cloning SDL_image: {sdlImageClone.stderr}"
-    else
-      logInfo "SDL_image cloned successfully"
-      logInfo sdlImageClone.stdout
   logInfo "Building SDL_image"
   -- Create build directory if it doesn't exist
   let sdlImageBuildDirExists ← System.FilePath.pathExists (sdlImageRepoDir / "build")
@@ -119,23 +130,18 @@ target libSDL3Image : Dynlib := Job.async do
     logInfo "SDL_image built successfully"
     logInfo buildSdlImage.stdout
   -- Return built dynlib
+  logInfo "SDL_image built successfully"
+
+target libSDL3Image : Dynlib := Job.async do
+  let sdlImageRepoDir : FilePath ← (← sdlImageDir.fetch).await
   return {
     name := "SDL3_image"
     path := sdlImageRepoDir / "build" / nameToSharedLib "SDL3_image"
   }
 
-target libSDL3Ttf : Dynlib := Job.async do
+def buildSDL3Ttf : FetchM (Unit) := do
   let sdlRepoDir : FilePath ← (<- sdlDir.fetch).await
   let sdlTtfRepoDir : FilePath ← (<- sdlTtfDir.fetch).await
-  let sdlTtfExists ← System.FilePath.pathExists sdlTtfRepoDir
-  if !sdlTtfExists then
-    logInfo "Cloning SDL_ttf"
-    let sdlTtfClone ← IO.Process.output { cmd := "git", args := #["clone", "--revision", sdlTtfGitRev, "--single-branch", "--depth", "1", "--recursive", sdlTtfGitRepo, sdlTtfRepoDir.toString] }
-    if sdlTtfClone.exitCode != 0 then
-      logError s!"Error cloning SDL_ttf: {sdlTtfClone.stderr}"
-    else
-      logInfo "SDL_ttf cloned successfully"
-      logInfo sdlTtfClone.stdout
   logInfo "Building SDL_ttf"
   -- Create build directory if it doesn't exist
   let sdlTtfBuildDirExists ← System.FilePath.pathExists (sdlTtfRepoDir / "build")
@@ -171,26 +177,19 @@ target libSDL3Ttf : Dynlib := Job.async do
     logInfo "SDL_ttf built successfully"
     logInfo buildSdlTtf.stdout
   -- Return built dynlib
+  logInfo "SDL_ttf built successfully"
+
+target libSDL3Ttf : Dynlib := Job.async do
+  let sdlTtfRepoDir : FilePath ← (← sdlTtfDir.fetch).await
   return {
     name := "SDL3_ttf"
     path := sdlTtfRepoDir / "build" / nameToSharedLib "SDL3_ttf"
   }
-target libSDL3Mixer : Dynlib := Job.async do
+
+def buildSDL3Mixer : FetchM (Unit) := do
   let sdlRepoDir : FilePath ← (← sdlDir.fetch).await
   let sdlMixerRepoDir : FilePath ← (← sdlMixerDir.fetch).await
 
-  logInfo s!"SDL repo dir: {sdlRepoDir}"
-  logInfo "Building SDL_mixer"
-
-  let sdlMixerExists ← System.FilePath.pathExists sdlMixerRepoDir
-  if !sdlMixerExists then
-    logInfo "Cloning SDL_mixer"
-    let sdlMixerClone ← IO.Process.output { cmd := "git", args := #["clone", "--revision", sdlMixerGitRev, "--single-branch", "--depth", "1", "--recursive", sdlMixerGitRepo, sdlMixerRepoDir.toString] }
-    if sdlMixerClone.exitCode != 0 then
-      logError s!"Error cloning SDL_mixer: {sdlMixerClone.stderr}"
-    else
-      logInfo "SDL_mixer cloned successfully"
-      logInfo sdlMixerClone.stdout
   logInfo "Building SDL_mixer"
 
   let sdlMixerBuildDir := sdlMixerRepoDir / "build"
@@ -224,36 +223,37 @@ target libSDL3Mixer : Dynlib := Job.async do
 
   logInfo "SDL_mixer built successfully"
 
+target libSDL3Mixer : Dynlib := Job.async do
+  let sdlMixerRepoDir : FilePath ← (← sdlMixerDir.fetch).await
   return {
     name := "SDL3_mixer"
     path := sdlMixerRepoDir / "build" / nameToSharedLib "SDL3_mixer"
   }
 
-def copyBinaries (sourceDir : FilePath) : FetchM (Job Unit) := do
-  -- manually copy the DLLs we need to .lake/build/bin/ in the root directory for the game to work
-  let dstDir := ((<- getRootPackage).binDir)
-  IO.FS.createDirAll dstDir
-  let binariesDir : FilePath := sourceDir / "build"
-  for entry in (← binariesDir.readDir) do
-    if entry.path.extension != none then
-      copyFile entry.path (dstDir / entry.path.fileName.get!)
-  return pure ()
-
 target libleansdl pkg : FilePath := do
-  discard (← libSDL3.fetch).await
-  discard (← libSDL3Image.fetch).await
-  discard (← libSDL3Ttf.fetch).await
-  discard (← libSDL3Mixer.fetch).await
+  -- clone the git repositories we need so we can build them later
+  let sdlRepoDir ← (← sdlDir.fetch).await
+  let sdlImageRepoDir ← (← sdlImageDir.fetch).await
+  let sdlTtfRepoDir ← (← sdlTtfDir.fetch).await
+  let sdlMixerRepoDir ← (← sdlMixerDir.fetch).await
 
-  -- copy binaries to the bin directory
-  let sdlDirPath ← (← sdlDir.fetch).await
-  let sdlImageDirPath ← (← sdlImageDir.fetch).await
-  let sdlTtfDirPath ← (← sdlTtfDir.fetch).await
-  let sdlMixerDirPath ← (← sdlMixerDir.fetch).await
-  discard (<- copyBinaries sdlDirPath).await
-  discard (<- copyBinaries sdlImageDirPath).await
-  discard (<- copyBinaries sdlTtfDirPath).await
-  discard (<- copyBinaries sdlMixerDirPath).await
+  cloneGitRepo sdlGitRepo sdlGitRev sdlRepoDir
+  cloneGitRepo sdlImageGitRepo sdlImageGitRev sdlImageRepoDir
+  cloneGitRepo sdlTtfGitRepo sdlTtfGitRev sdlTtfRepoDir
+  cloneGitRepo sdlMixerGitRepo sdlMixerGitRev sdlMixerRepoDir
+
+  -- build all the libraries we need
+  buildSDL3
+  buildSDL3Image
+  buildSDL3Ttf
+  buildSDL3Mixer
+
+  logInfo "All libraries built successfully"
+
+  copyBinaries sdlRepoDir
+  copyBinaries sdlImageRepoDir
+  copyBinaries sdlTtfRepoDir
+  copyBinaries sdlMixerRepoDir
 
   let sdlO ← sdl.o.fetch
   let name := nameToStaticLib "leansdl"
