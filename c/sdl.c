@@ -324,7 +324,12 @@ lean_obj_res sdl_get_texture_width(lean_object * g_texture, lean_obj_arg w) {
 
     SDL_PropertiesID messageTexProps = SDL_GetTextureProperties(texture);
 
+    // get number property always returns a signed 64-bit integer
     int64_t width = SDL_GetNumberProperty(messageTexProps, SDL_PROP_TEXTURE_WIDTH_NUMBER, 0);
+    
+    // however, there seems to be no way to return int64_t directly to Lean
+    // so we box it as uint64_t instead
+    // TODO: figure out a way to return int64_t directly
     return lean_io_result_mk_ok(lean_box_uint64(width));
 }
 
