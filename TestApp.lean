@@ -7,11 +7,18 @@ structure Color where
   a : UInt8 := 255
 
 structure EngineState where
+  window : SDL.SDLWindow
+  renderer : SDL.SDLRenderer
   deltaTime : Float
   lastTime : UInt32
   running : Bool
   playerX : Int32
   playerY : Int32
+  texture : SDL.SDLTexture
+  font : SDL.SDLFont
+  mixer : SDL.SDLMixer
+  track : SDL.SDLTrack
+  audio : SDL.SDLAudio
 
 def SCREEN_WIDTH : Int32 := 1280
 def SCREEN_HEIGHT : Int32 := 720
@@ -27,23 +34,27 @@ def keyToScancode : Key → UInt32
 
 def isKeyDown (key : Key) : IO Bool := SDL.getKeyState (keyToScancode key)
 
-def setColor (color : Color) : IO Unit :=
-  SDL.setRenderDrawColor color.r color.g color.b color.a *> pure ()
+def setColor (renderer : SDL.SDLRenderer) (color : Color) : IO Unit :=
+  SDL.setRenderDrawColor renderer color.r color.g color.b color.a *> pure ()
 
-def fillRect (x y w h : Int32) : IO Unit :=
-  SDL.renderFillRect x y w h *> pure ()
+def fillRect (renderer : SDL.SDLRenderer) (x y w h : Int32) : IO Unit :=
+  SDL.renderFillRect renderer x y w h *> pure ()
 
 def renderScene (state : EngineState) : IO Unit := do
-  setColor { r := 135, g := 206, b := 235 }
-  let _ ← SDL.renderClear
+  setColor state.renderer { r := 135, g := 206, b := 235 }
+  let _ ← SDL.renderClear state.renderer
 
-  setColor { r := 255, g := 0, b := 0 }
-  fillRect state.playerX state.playerY 100 100
+  setColor state.renderer { r := 255, g := 0, b := 0 }
+  fillRect state.renderer state.playerX state.playerY 100 100
 
-  let _ ← SDL.renderTexture 500 150 64 64
+  let _ ← SDL.renderTexture state.renderer state.texture 500 150 64 64
 
   let message := "Hello, Lean SDL!"
-  let _ ← SDL.renderText message 50 50 255 255 255 255
+  let textSurface ← SDL.textToSurface state.renderer state.font message 50 50 255 255 255 255
+  let textTexture ← SDL.createTextureFromSurface state.renderer textSurface
+  let textWidth ← SDL.getTextureWidth textTexture
+  let textHeight ← SDL.getTextureHeight textTexture
+  let _ ← SDL.renderTexture state.renderer textTexture 50 50 textWidth textHeight
   pure ()
 
 private def updateEngineState (engineState : IO.Ref EngineState) : IO Unit := do
@@ -78,7 +89,7 @@ partial def gameLoop (engineState : IO.Ref EngineState) : IO Unit := do
   let state ← engineState.get
   if state.running then
     renderScene state
-    SDL.renderPresent
+    SDL.renderPresent state.renderer
     gameLoop engineState
 
 partial def run : IO Unit := do
@@ -86,26 +97,36 @@ partial def run : IO Unit := do
     IO.println "Failed to initialize SDL"
     return
 
-  unless (← SDL.createWindow "LeanDoomed" SCREEN_WIDTH SCREEN_HEIGHT SDL.SDL_WINDOW_SHOWN) != 0 do
-    IO.println "Failed to create window"
+  let window ← try
+    SDL.createWindow "LeanDoomed" SCREEN_WIDTH SCREEN_HEIGHT SDL.SDL_WINDOW_SHOWN
+  catch sdlError =>
+    IO.println sdlError
     SDL.quit
     return
 
-  unless (← SDL.createRenderer ()) != 0 do
-    IO.println "Failed to create renderer"
+  let renderer ← try
+    SDL.createRenderer window
+  catch sdlError =>
+    IO.println sdlError
     SDL.quit
     return
 
-  unless (← SDL.loadTexture "assets/wall.png") != 0 do
-    IO.println "Failed to load texture, using solid colors"
+  let texture ← try
+    SDL.loadImageTexture renderer "assets/wall.png"
+  catch sdlError =>
+    IO.println sdlError
+    SDL.quit
+    return
 
   unless (← SDL.ttfInit) do
     IO.println "Failed to initialize SDL_ttf"
     SDL.quit
     return
 
-  unless (← SDL.loadFont "assets/Inter-VariableFont.ttf" 24) do
-    IO.println "Failed to load font"
+  let font ← try
+    SDL.loadFont "assets/Inter-VariableFont.ttf" 24
+  catch sdlError =>
+    IO.println sdlError
     SDL.quit
     return
 
@@ -114,19 +135,46 @@ partial def run : IO Unit := do
     SDL.quit
     return
 
-  unless (← SDL.createMixer ()) != 0 do
-    IO.println "Failed to create audio mixer"
+  let mixer ← try
+    SDL.createMixer ()
+  catch sdlError =>
+    IO.println sdlError
     SDL.quit
     return
 
-  unless (← SDL.loadTrack "assets/In_The_Dark_Flashes.mp3") do
-    IO.println "Failed to load audio track"
+  let track ← try
+    SDL.createTrack mixer
+  catch sdlError =>
+    IO.println sdlError
+    SDL.quit
+    return
+
+  let audio ← try
+    SDL.loadAudio mixer "assets/In_The_Dark_Flashes.mp3"
+  catch sdlError =>
+    IO.println sdlError
+    SDL.quit
+    return
+
+  match (← SDL.setTrackAudio track audio) with
+  | true => pure ()
+  | false =>
+    IO.println s!"Failed to set track audio"
+    SDL.quit
+    return
+
+  match (← SDL.playTrack track) with
+  | true => pure ()
+  | false =>
+    IO.println s!"Failed to play track"
     SDL.quit
     return
 
   let initialState : EngineState := {
+    window := window, renderer := renderer
     deltaTime := 0.0, lastTime := 0, running := true
     playerX := (SCREEN_WIDTH / 2), playerY := (SCREEN_HEIGHT / 2)
+    texture := texture, mixer := mixer, track := track, audio := audio, font := font
   }
 
   let engineState ← IO.mkRef initialState

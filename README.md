@@ -18,6 +18,9 @@ If you want to see an example project that uses these bindings, check this out:
 
 https://github.com/ValorZard/lean-sdl-test
 
+## Acknowledgements
+MASSIVE thanks to Oliver Dressler (@oOo0oOo) and Mac Malone (@tydeu) for all the help they gave!
+
 ## License & Attribution
 
 MIT
