@@ -60,9 +60,6 @@ instance SDLRenderer.instNonempty : Nonempty SDLRenderer := SDLRenderer.nonempty
 @[extern "sdl_create_renderer"]
 opaque createRenderer : @& SDLWindow → SDLIO SDLRenderer
 
-@[extern "sdl_create_mixer"]
-opaque createMixer : Unit → SDLIO UInt32
-
 @[extern "sdl_set_render_draw_color"]
 opaque setRenderDrawColor : @& SDLRenderer → UInt8 → UInt8 → UInt8 → UInt8 → SDLIO Int32
 
@@ -109,17 +106,18 @@ def loadImageTexture
   let surface <- SDL.loadImage path
   createTextureFromSurface renderer surface
 
-@[extern "sdl_load_font"]
-opaque loadFont : String → UInt32 → SDLIO Bool
+private opaque SDLFont.nonemptyType : NonemptyType
+def SDLFont : Type := SDLFont.nonemptyType.type
+instance SDLFont.instNonempty : Nonempty SDLFont := SDLFont.nonemptyType.property
 
-@[extern "sdl_load_track"]
-opaque loadTrack : String → SDLIO Bool
+@[extern "sdl_load_font"]
+opaque loadFont : System.FilePath → UInt32 → SDLIO SDLFont
 
 @[extern "sdl_render_texture"]
 opaque renderTexture (renderer : @& SDLRenderer) (texture : @& SDLTexture) (x : Int32) (y : Int32) (w : Int32) (h : Int32) : SDLIO Int32
 
 @[extern "sdl_render_text"]
-opaque renderText (renderer : @& SDLRenderer) (message : @& String) (x : Int32) (y : Int32) (red : UInt8) (green : UInt8) (blue : UInt8) (alpha : UInt8) : SDLIO Int32
+opaque renderText (renderer : @& SDLRenderer) (font : @& SDLFont) (message : @& String) (x : Int32) (y : Int32) (red : UInt8) (green : UInt8) (blue : UInt8) (alpha : UInt8) : SDLIO Int32
 
 -- Mouse support
 @[extern "sdl_get_mouse_state"]
@@ -142,5 +140,32 @@ def isMousePressed (button : UInt32) : SDLIO Bool := do
 def isLeftMousePressed : SDLIO Bool := isMousePressed SDL_BUTTON_LEFT
 def isRightMousePressed : SDLIO Bool := isMousePressed SDL_BUTTON_RIGHT
 def isMiddleMousePressed : SDLIO Bool := isMousePressed SDL_BUTTON_MIDDLE
+
+
+-- SDL_mixer support
+
+private opaque SDLMixer.nonemptyType : NonemptyType
+def SDLMixer : Type := SDLMixer.nonemptyType.type
+instance SDLMixer.instNonempty : Nonempty SDLMixer := SDLMixer.nonemptyType.property
+@[extern "sdl_create_mixer"]
+opaque createMixer : Unit → SDLIO SDLMixer
+
+private opaque SDLTrack.nonemptyType : NonemptyType
+def SDLTrack : Type := SDLTrack.nonemptyType.type
+instance SDLTrack.instNonempty : Nonempty SDLTrack := SDLTrack.nonemptyType.property
+@[extern "sdl_create_track"]
+opaque createTrack : SDLMixer → SDLIO SDLTrack
+
+private opaque SDLAudio.nonemptyType : NonemptyType
+def SDLAudio : Type := SDLAudio.nonemptyType.type
+instance SDLAudio.instNonempty : Nonempty SDLAudio := SDLAudio.nonemptyType.property
+@[extern "sdl_load_audio"]
+opaque loadAudio : SDLMixer → System.FilePath → SDLIO SDLAudio
+
+@[extern "sdl_set_track_audio"]
+opaque setTrackAudio : SDLTrack → SDLAudio → SDLIO Bool
+
+@[extern "sdl_play_track"]
+opaque playTrack : SDLTrack → SDLIO Bool
 
 end SDL

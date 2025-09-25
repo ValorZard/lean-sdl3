@@ -5,10 +5,6 @@
 #include <SDL3_mixer/SDL_mixer.h>
 #include <lean/lean.h>
 
-static TTF_Font* font = NULL;
-static MIX_Mixer* mixer = NULL;
-static MIX_Track* track = NULL;
-
 static lean_external_class * sdl_texture_external_class = NULL;
 
 // finalizer is basically the destructor for the external object
@@ -17,7 +13,7 @@ static void sdl_texture_finalizer(void * h) {
     SDL_DestroyTexture((SDL_Texture*)h);
 }
 
-// I'm not really sure what this is for, but it's required
+// this is not needed for our use case, but must be defined
 static void sdl_texture_foreach(void * val, lean_obj_arg fn) {
 
 }
@@ -30,7 +26,7 @@ static void sdl_window_finalizer(void * h) {
     SDL_DestroyWindow((SDL_Window*)h);
 }
 
-// I'm not really sure what this is for, but it's required
+
 static void sdl_window_foreach(void * val, lean_obj_arg fn) {
 
 }
@@ -43,7 +39,7 @@ static void sdl_renderer_finalizer(void * h) {
     SDL_DestroyRenderer((SDL_Renderer*)h);
 }
 
-// I'm not really sure what this is for, but it's required
+
 static void sdl_renderer_foreach(void * val, lean_obj_arg fn) {
 
 }
@@ -56,11 +52,50 @@ static void sdl_surface_finalizer(void * h) {
     SDL_DestroySurface((SDL_Surface*)h);
 }
 
-// I'm not really sure what this is for, but it's required
+
 static void sdl_surface_foreach(void * val, lean_obj_arg fn) {
 
 }
 
+static lean_external_class * sdl_ttf_font_external_class = NULL;
+
+static void sdl_ttf_font_finalizer(void * h) {
+    TTF_CloseFont((TTF_Font*)h);
+}
+
+static void sdl_ttf_font_foreach(void * val, lean_obj_arg fn) {
+
+}
+
+static lean_external_class * sdl_mixer_external_class = NULL;
+
+static void sdl_mixer_finalizer(void * h) {
+    MIX_DestroyMixer((MIX_Mixer*)h);
+}
+
+static void sdl_mixer_foreach(void * val, lean_obj_arg fn) {
+
+}
+
+static lean_external_class * sdl_mixer_track_external_class = NULL;
+
+static void sdl_mixer_track_finalizer(void * h) {
+    MIX_DestroyTrack((MIX_Track*)h);
+}
+
+static void sdl_mixer_track_foreach(void * val, lean_obj_arg fn) {
+
+}
+
+static lean_external_class * sdl_mixer_audio_external_class = NULL;
+
+static void sdl_mixer_audio_finalizer(void * h) {
+    MIX_DestroyAudio((MIX_Audio*)h);
+}
+
+static void sdl_mixer_audio_foreach(void * val, lean_obj_arg fn) {
+
+}
 
 lean_obj_res sdl_init(uint32_t flags, lean_obj_arg w) {
     int32_t result = SDL_Init(flags);
@@ -76,20 +111,29 @@ lean_obj_res sdl_init(uint32_t flags, lean_obj_arg w) {
 
 lean_obj_res sdl_ttf_init(lean_obj_arg w) {
     bool result = TTF_Init();
+
+    sdl_ttf_font_external_class = lean_register_external_class(sdl_ttf_font_finalizer, sdl_ttf_font_foreach);
+
     return lean_io_result_mk_ok(lean_box_uint32(result));
 }
 
 lean_obj_res sdl_mixer_init(lean_obj_arg w) {
     bool result = MIX_Init();
+
+    sdl_mixer_external_class = lean_register_external_class(sdl_mixer_finalizer, sdl_mixer_foreach);
+    sdl_mixer_track_external_class = lean_register_external_class(sdl_mixer_track_finalizer, sdl_mixer_track_foreach);
+    sdl_mixer_audio_external_class = lean_register_external_class(sdl_mixer_audio_finalizer, sdl_mixer_audio_foreach);
+
     return lean_io_result_mk_ok(lean_box_uint32(result));
 }
 
 lean_obj_res sdl_create_mixer(lean_obj_arg w) {
-    mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, NULL);
+    MIX_Mixer* mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, NULL);
     if (mixer == NULL) {
         return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
     }
-    return lean_io_result_mk_ok(lean_box(1));
+    lean_object* external_mixer = lean_alloc_external(sdl_mixer_external_class, mixer);
+    return lean_io_result_mk_ok(external_mixer);
 }
 
 
@@ -201,36 +245,66 @@ lean_obj_res sdl_create_texture_from_surface(lean_object * g_renderer, lean_obje
 
 lean_obj_res sdl_load_font(lean_obj_arg fontname, uint32_t font_size, lean_obj_arg w) {
     const char* fontname_str = lean_string_cstr(fontname);
-    font = TTF_OpenFont(fontname_str, font_size);
+    TTF_Font* font = TTF_OpenFont(fontname_str, font_size);
     if (!font) {
-        SDL_Log("C: Failed to load font: %s\n", SDL_GetError());
-        return lean_io_result_mk_ok(lean_box(0));
+        return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
     }
 
-    return lean_io_result_mk_ok(lean_box(1));
+    lean_object* external_font = lean_alloc_external(sdl_ttf_font_external_class, font);
+
+    return lean_io_result_mk_ok(external_font);
 }
 
-// TODO: This plays the track immediatly after loading it, which should not be the case
-lean_obj_res sdl_load_track(lean_obj_arg trackname, lean_obj_arg w) {
+lean_obj_res sdl_create_track(lean_object* g_mixer, lean_obj_arg w) {
+    MIX_Mixer* mixer = (MIX_Mixer*)lean_get_external_data(g_mixer);
     MIX_Track* mixerTrack = MIX_CreateTrack(mixer);
-    const char* trackname_str = lean_string_cstr(trackname);
-    MIX_Audio* track = MIX_LoadAudio(mixer, trackname_str, false);
-    if (!track) {
-        SDL_Log("C: Failed to load track: %s\n", SDL_GetError());
-        return lean_io_result_mk_ok(lean_box(0));
+    if (!mixerTrack) {
+         return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
     }
 
-    // play the track (does not loop)
-    MIX_SetTrackAudio(mixerTrack, track);
-    MIX_PlayTrack(mixerTrack, 0);
+    lean_object* external_track = lean_alloc_external(sdl_mixer_track_external_class, mixerTrack);
 
-    return lean_io_result_mk_ok(lean_box(1));
+    return lean_io_result_mk_ok(external_track);
+}
+
+
+lean_obj_res sdl_load_audio(lean_object* g_mixer, lean_obj_arg filename, lean_obj_arg w) {
+    MIX_Mixer* mixer = (MIX_Mixer*)lean_get_external_data(g_mixer);
+    const char* filename_str = lean_string_cstr(filename);
+    MIX_Audio* audio = MIX_LoadAudio(mixer, filename_str, false);
+    if (!audio) {
+        return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
+    }
+
+    lean_object* external_audio = lean_alloc_external(sdl_mixer_audio_external_class, audio);
+
+    return lean_io_result_mk_ok(external_audio);
+}
+
+lean_obj_res sdl_set_track_audio(lean_object* g_track, lean_object* g_audio, lean_obj_arg w) {
+    MIX_Track* track = (MIX_Track*)lean_get_external_data(g_track);
+    MIX_Audio* audio = (MIX_Audio*)lean_get_external_data(g_audio);
+    if (!track || !audio) {
+        return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string("C: Invalid track or audio")));
+    }
+    bool result = MIX_SetTrackAudio(track, audio);
+    return lean_io_result_mk_ok(lean_box_uint32(result));
+}
+
+lean_obj_res sdl_play_track(lean_object* g_track, lean_obj_arg w) {
+    MIX_Track* track = (MIX_Track*)lean_get_external_data(g_track);
+    if (!track) {
+        return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string("C: Invalid track or audio")));
+    }
+    bool result = MIX_PlayTrack(track, 0);
+    return lean_io_result_mk_ok(lean_box_uint32(result));
 }
 
 // TODO: VERY inefficient text rendering, re-renders entire text each time
-lean_obj_res sdl_render_text(lean_object* g_renderer, lean_obj_arg text, uint32_t dst_x, uint32_t dst_y, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha, lean_obj_arg w) {
-    if (!g_renderer || !font) return lean_io_result_mk_ok(lean_box_uint32(0));
+lean_obj_res sdl_render_text(lean_object* g_renderer, lean_object* g_font, lean_obj_arg text, uint32_t dst_x, uint32_t dst_y, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha, lean_obj_arg w) {
+    if (!g_renderer || !g_font) return lean_io_result_mk_ok(lean_box_uint32(0));
     SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(g_renderer);
+    TTF_Font* font = (TTF_Font*)lean_get_external_data(g_font);
     const char* text_str = lean_string_cstr(text);
     size_t text_len = lean_string_len(text);
     SDL_Color color = { red, green, blue, alpha };
