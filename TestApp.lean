@@ -50,7 +50,11 @@ def renderScene (state : EngineState) : IO Unit := do
   let _ ← SDL.renderTexture state.renderer state.texture 500 150 64 64
 
   let message := "Hello, Lean SDL!"
-  let _ ← SDL.renderText state.renderer state.font message 50 50 255 255 255 255
+  let textSurface ← SDL.textToSurface state.renderer state.font message 50 50 255 255 255 255
+  let textTexture ← SDL.createTextureFromSurface state.renderer textSurface
+  let textWidth ← SDL.getTextureWidth textTexture
+  let textHeight ← SDL.getTextureHeight textTexture
+  let _ ← SDL.renderTexture state.renderer textTexture 50 50 textWidth textHeight
   pure ()
 
 private def updateEngineState (engineState : IO.Ref EngineState) : IO Unit := do

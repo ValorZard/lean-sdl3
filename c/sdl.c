@@ -301,8 +301,8 @@ lean_obj_res sdl_play_track(lean_object* g_track, lean_obj_arg w) {
 }
 
 // TODO: VERY inefficient text rendering, re-renders entire text each time
-lean_obj_res sdl_render_text(lean_object* g_renderer, lean_object* g_font, lean_obj_arg text, uint32_t dst_x, uint32_t dst_y, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha, lean_obj_arg w) {
-    if (!g_renderer || !g_font) return lean_io_result_mk_ok(lean_box_uint32(0));
+lean_obj_res sdl_text_to_surface(lean_object* g_renderer, lean_object* g_font, lean_obj_arg text, uint32_t dst_x, uint32_t dst_y, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha, lean_obj_arg w) {
+    if (!g_renderer || !g_font) return lean_io_result_mk_error(lean_mk_string("C: Renderer or Font is NULL"));
     SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(g_renderer);
     TTF_Font* font = (TTF_Font*)lean_get_external_data(g_font);
     const char* text_str = lean_string_cstr(text);
@@ -312,27 +312,32 @@ lean_obj_res sdl_render_text(lean_object* g_renderer, lean_object* g_font, lean_
     if (!text_surface) {
         return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
     }
-    SDL_Texture* text_texture = SDL_CreateTextureFromSurface(renderer, text_surface);
-    SDL_DestroySurface(text_surface);
-    if (!text_texture) {
-        return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
-    }
 
-    SDL_PropertiesID messageTexProps = SDL_GetTextureProperties(text_texture);
+    lean_object* external_text_surface = lean_alloc_external(sdl_surface_external_class, text_surface);
 
-    SDL_FRect text_rect = {
-            .x = (float)dst_x,
-            .y = (float)dst_y,
-            .w = (float)SDL_GetNumberProperty(messageTexProps, SDL_PROP_TEXTURE_WIDTH_NUMBER, 0),
-            .h = (float)SDL_GetNumberProperty(messageTexProps, SDL_PROP_TEXTURE_HEIGHT_NUMBER, 0)
-    };
-
-    SDL_RenderTexture(renderer, text_texture, NULL, &text_rect);
-    return lean_io_result_mk_ok(lean_box_uint32(1));
+    return lean_io_result_mk_ok(external_text_surface);
 }
 
 
-lean_obj_res sdl_render_texture(lean_object* g_renderer, lean_object * g_texture, uint32_t dst_x, uint32_t dst_y, uint32_t dst_height, uint32_t dst_width, lean_obj_arg w) {
+lean_obj_res sdl_get_texture_width(lean_object * g_texture, lean_obj_arg w) {
+    SDL_Texture* texture = (SDL_Texture*)lean_get_external_data(g_texture);
+
+    SDL_PropertiesID messageTexProps = SDL_GetTextureProperties(texture);
+
+    int64_t width = SDL_GetNumberProperty(messageTexProps, SDL_PROP_TEXTURE_WIDTH_NUMBER, 0);
+    return lean_io_result_mk_ok(lean_box_uint64(width));
+}
+
+lean_obj_res sdl_get_texture_height(lean_object * g_texture, lean_obj_arg w) {
+    SDL_Texture* texture = (SDL_Texture*)lean_get_external_data(g_texture);
+
+    SDL_PropertiesID messageTexProps = SDL_GetTextureProperties(texture);
+
+    int64_t height = SDL_GetNumberProperty(messageTexProps, SDL_PROP_TEXTURE_HEIGHT_NUMBER, 0);
+    return lean_io_result_mk_ok(lean_box_uint64(height));
+}
+
+lean_obj_res sdl_render_texture(lean_object* g_renderer, lean_object * g_texture, int64_t dst_x, int64_t dst_y, int64_t dst_width, int64_t dst_height, lean_obj_arg w) {
     if (!g_renderer || !g_texture) return lean_io_result_mk_ok(lean_box_uint32(-1));
 
     SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(g_renderer);
@@ -342,6 +347,8 @@ lean_obj_res sdl_render_texture(lean_object* g_renderer, lean_object * g_texture
 
     return lean_io_result_mk_ok(lean_box_uint32(SDL_RenderTexture(renderer, texture, NULL, &dst_rect)));
 }
+
+
 
 // Mouse support (caching avoids redundant SDL calls within the same frame)
 static struct {

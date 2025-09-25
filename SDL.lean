@@ -114,10 +114,16 @@ instance SDLFont.instNonempty : Nonempty SDLFont := SDLFont.nonemptyType.propert
 opaque loadFont : System.FilePath → UInt32 → SDLIO SDLFont
 
 @[extern "sdl_render_texture"]
-opaque renderTexture (renderer : @& SDLRenderer) (texture : @& SDLTexture) (x : Int32) (y : Int32) (w : Int32) (h : Int32) : SDLIO Int32
+opaque renderTexture (renderer : @& SDLRenderer) (texture : @& SDLTexture) (x : Int64) (y : Int64) (w : Int64) (h : Int64) : SDLIO Int32
 
-@[extern "sdl_render_text"]
-opaque renderText (renderer : @& SDLRenderer) (font : @& SDLFont) (message : @& String) (x : Int32) (y : Int32) (red : UInt8) (green : UInt8) (blue : UInt8) (alpha : UInt8) : SDLIO Int32
+@[extern "sdl_get_texture_width"]
+opaque getTextureWidth (texture : @& SDLTexture) : SDLIO Int64
+
+@[extern "sdl_get_texture_height"]
+opaque getTextureHeight (texture : @& SDLTexture) : SDLIO Int64
+
+@[extern "sdl_text_to_surface"]
+opaque textToSurface (renderer : @& SDLRenderer) (font : @& SDLFont) (message : @& String) (x : Int32) (y : Int32) (red : UInt8) (green : UInt8) (blue : UInt8) (alpha : UInt8) : SDLIO SDLSurface
 
 -- Mouse support
 @[extern "sdl_get_mouse_state"]
@@ -154,18 +160,18 @@ private opaque SDLTrack.nonemptyType : NonemptyType
 def SDLTrack : Type := SDLTrack.nonemptyType.type
 instance SDLTrack.instNonempty : Nonempty SDLTrack := SDLTrack.nonemptyType.property
 @[extern "sdl_create_track"]
-opaque createTrack : SDLMixer → SDLIO SDLTrack
+opaque createTrack : @& SDLMixer → SDLIO SDLTrack
 
 private opaque SDLAudio.nonemptyType : NonemptyType
 def SDLAudio : Type := SDLAudio.nonemptyType.type
 instance SDLAudio.instNonempty : Nonempty SDLAudio := SDLAudio.nonemptyType.property
 @[extern "sdl_load_audio"]
-opaque loadAudio : SDLMixer → System.FilePath → SDLIO SDLAudio
+opaque loadAudio : @& SDLMixer → System.FilePath → SDLIO SDLAudio
 
 @[extern "sdl_set_track_audio"]
-opaque setTrackAudio : SDLTrack → SDLAudio → SDLIO Bool
+opaque setTrackAudio : @& SDLTrack → @& SDLAudio → SDLIO Bool
 
 @[extern "sdl_play_track"]
-opaque playTrack : SDLTrack → SDLIO Bool
+opaque playTrack : @& SDLTrack → SDLIO Bool
 
 end SDL
