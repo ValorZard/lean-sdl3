@@ -214,3 +214,35 @@ lean_obj_res sdl_render_texture(uint32_t dst_x, uint32_t dst_y, uint32_t dst_hei
 
     return lean_io_result_mk_ok(lean_box_uint32(SDL_RenderTexture(g_renderer, g_texture, NULL, &dst_rect)));
 }
+
+// Mouse support (caching avoids redundant SDL calls within the same frame)
+static struct {
+    float x, y;
+    uint32_t buttons;
+    bool relative_mode;
+    uint32_t last_frame_tick;
+} mouse_cache = {0, 0, 0, false, 0};
+
+lean_obj_res sdl_get_mouse_state(lean_obj_arg w) {
+    uint32_t current_tick = SDL_GetTicks();
+    if (mouse_cache.last_frame_tick != current_tick) {
+        if (mouse_cache.relative_mode) {
+            mouse_cache.buttons = SDL_GetRelativeMouseState(&mouse_cache.x, &mouse_cache.y);
+        } else {
+            mouse_cache.buttons = SDL_GetMouseState(&mouse_cache.x, &mouse_cache.y);
+        }
+        mouse_cache.last_frame_tick = current_tick;
+    }
+
+    uint64_t packed = ((uint64_t)(uint32_t)(int32_t)mouse_cache.x << 32) | 
+                      ((uint64_t)(uint32_t)(int32_t)mouse_cache.y << 16) |
+                      (uint64_t)mouse_cache.buttons;
+    return lean_io_result_mk_ok(lean_box_uint64(packed));
+}
+
+lean_obj_res sdl_set_relative_mouse_mode(bool enabled, lean_obj_arg w) {
+    int32_t result = SDL_SetWindowRelativeMouseMode(g_window, enabled);
+    mouse_cache.relative_mode = enabled;
+    mouse_cache.last_frame_tick = 0; // Force refresh
+    return lean_io_result_mk_ok(lean_box_uint32(result));
+}

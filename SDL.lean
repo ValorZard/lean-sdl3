@@ -14,6 +14,13 @@ def SDL_SCANCODE_RIGHT : UInt32 := 79
 def SDL_SCANCODE_SPACE : UInt32 := 44
 def SDL_SCANCODE_ESCAPE : UInt32 := 41
 
+def SDL_MOUSEBUTTONDOWN : UInt32 := 0x401
+def SDL_MOUSEBUTTONUP : UInt32 := 0x402
+def SDL_MOUSEMOTION : UInt32 := 0x400
+def SDL_BUTTON_LEFT : UInt32 := 1
+def SDL_BUTTON_MIDDLE : UInt32 := 2
+def SDL_BUTTON_RIGHT : UInt32 := 4
+
 @[extern "sdl_init"]
 opaque init : UInt32 → IO UInt32
 
@@ -73,4 +80,27 @@ opaque renderTexture (x : Int32) (y : Int32) (w : Int32) (h : Int32) : IO Int32
 
 @[extern "sdl_render_text"]
 opaque renderText (message : String) (x : Int32) (y : Int32) (red : UInt8) (green : UInt8) (blue : UInt8) (alpha : UInt8) : IO Int32
+
+-- Mouse support
+@[extern "sdl_get_mouse_state"]
+opaque getMouseStateRaw : IO UInt64
+
+@[extern "sdl_set_relative_mouse_mode"]
+opaque setRelativeMouseMode (enabled : Bool) : IO UInt32
+
+def getMousePos : IO (Int32 × Int32) := do
+  let packed ← getMouseStateRaw
+  let x := (packed >>> 32).toUInt32.toInt32
+  let y := ((packed >>> 16) &&& 0xFFFF).toUInt32.toInt32
+  return (x, y)
+
+def isMousePressed (button : UInt32) : IO Bool := do
+  let packed ← getMouseStateRaw
+  let buttons := (packed &&& 0xFFFF).toUInt32
+  return (buttons &&& button) != 0
+
+def isLeftMousePressed : IO Bool := isMousePressed SDL_BUTTON_LEFT
+def isRightMousePressed : IO Bool := isMousePressed SDL_BUTTON_RIGHT
+def isMiddleMousePressed : IO Bool := isMousePressed SDL_BUTTON_MIDDLE
+
 end SDL
