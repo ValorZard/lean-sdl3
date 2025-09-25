@@ -33,26 +33,32 @@ opaque mixerInit : IO Bool
 @[extern "sdl_quit"]
 opaque quit : IO Unit
 
+private opaque SDLWindow.nonemptyType : NonemptyType
+def SDLWindow : Type := SDLWindow.nonemptyType.type
+instance SDLWindow.instNonempty : Nonempty SDLWindow := SDLWindow.nonemptyType.property
 @[extern "sdl_create_window"]
-opaque createWindow : String → Int32 → Int32 → UInt32 → IO UInt32
+opaque createWindow : String → Int32 → Int32 → UInt32 → IO SDLWindow
 
+private opaque SDLRenderer.nonemptyType : NonemptyType
+def SDLRenderer : Type := SDLRenderer.nonemptyType.type
+instance SDLRenderer.instNonempty : Nonempty SDLRenderer := SDLRenderer.nonemptyType.property
 @[extern "sdl_create_renderer"]
-opaque createRenderer : Unit → IO UInt32
+opaque createRenderer : @& SDLWindow → IO SDLRenderer
 
 @[extern "sdl_create_mixer"]
 opaque createMixer : Unit → IO UInt32
 
 @[extern "sdl_set_render_draw_color"]
-opaque setRenderDrawColor : UInt8 → UInt8 → UInt8 → UInt8 → IO Int32
+opaque setRenderDrawColor : @& SDLRenderer → UInt8 → UInt8 → UInt8 → UInt8 → IO Int32
 
 @[extern "sdl_render_clear"]
-opaque renderClear : IO Int32
+opaque renderClear : @& SDLRenderer → IO Int32
 
 @[extern "sdl_render_present"]
-opaque renderPresent : IO Unit
+opaque renderPresent : @& SDLRenderer → IO Unit
 
 @[extern "sdl_render_fill_rect"]
-opaque renderFillRect : Int32 → Int32 → Int32 → Int32 → IO Int32
+opaque renderFillRect : @& SDLRenderer → Int32 → Int32 → Int32 → Int32 → IO Int32
 
 @[extern "sdl_delay"]
 opaque delay : UInt32 → IO Unit
@@ -66,14 +72,27 @@ opaque getTicks : IO UInt32
 @[extern "sdl_get_key_state"]
 opaque getKeyState : UInt32 → IO Bool
 
+-- make SDLTexture an opaque type, and make sure to tell Lean that it is nonempty
 private opaque SDLTexture.nonemptyType : NonemptyType
-
 def SDLTexture : Type := SDLTexture.nonemptyType.type
 instance SDLTexture.instNonempty : Nonempty SDLTexture := SDLTexture.nonemptyType.property
 
--- this should return an option depending on whether the texture was loaded successfully or not
-@[extern "sdl_load_texture"]
-opaque loadTexture? : String → IO SDLTexture
+private opaque SDLSurface.nonemptyType : NonemptyType
+def SDLSurface : Type := SDLSurface.nonemptyType.type
+instance SDLSurface.instNonempty : Nonempty SDLSurface := SDLSurface.nonemptyType.property
+@[extern "sdl_image_load"]
+-- @& means "by reference"
+opaque loadImage :  (path : @& System.FilePath) → IO SDLSurface
+
+@[extern "sdl_create_texture_from_surface"]
+opaque createTextureFromSurface
+  (renderer : @& SDLRenderer) (surface : @& SDLSurface) : IO SDLTexture
+
+def loadImageTexture
+  (renderer : SDLRenderer) (path : System.FilePath)
+: IO SDLTexture := do
+  let surface <- SDL.loadImage path
+  createTextureFromSurface renderer surface
 
 @[extern "sdl_load_font"]
 opaque loadFont : String → UInt32 → IO Bool
@@ -82,17 +101,17 @@ opaque loadFont : String → UInt32 → IO Bool
 opaque loadTrack : String → IO Bool
 
 @[extern "sdl_render_texture"]
-opaque renderTexture (texture : SDLTexture) (x : Int32) (y : Int32) (w : Int32) (h : Int32) : IO Int32
+opaque renderTexture (renderer : @& SDLRenderer) (texture : @& SDLTexture) (x : Int32) (y : Int32) (w : Int32) (h : Int32) : IO Int32
 
 @[extern "sdl_render_text"]
-opaque renderText (message : String) (x : Int32) (y : Int32) (red : UInt8) (green : UInt8) (blue : UInt8) (alpha : UInt8) : IO Int32
+opaque renderText (renderer : @& SDLRenderer) (message : @& String) (x : Int32) (y : Int32) (red : UInt8) (green : UInt8) (blue : UInt8) (alpha : UInt8) : IO Int32
 
 -- Mouse support
 @[extern "sdl_get_mouse_state"]
 opaque getMouseStateRaw : IO UInt64
 
 @[extern "sdl_set_relative_mouse_mode"]
-opaque setRelativeMouseMode (enabled : Bool) : IO UInt32
+opaque setRelativeMouseMode (window : SDLWindow) (enabled : Bool) : IO UInt32
 
 def getMousePos : IO (Int32 × Int32) := do
   let packed ← getMouseStateRaw

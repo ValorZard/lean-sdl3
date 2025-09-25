@@ -7,6 +7,8 @@ structure Color where
   a : UInt8 := 255
 
 structure EngineState where
+  window : SDL.SDLWindow
+  renderer : SDL.SDLRenderer
   deltaTime : Float
   lastTime : UInt32
   running : Bool
@@ -28,27 +30,27 @@ def keyToScancode : Key → UInt32
 
 def isKeyDown (key : Key) : IO Bool := SDL.getKeyState (keyToScancode key)
 
-def setColor (color : Color) : IO Unit :=
-  SDL.setRenderDrawColor color.r color.g color.b color.a *> pure ()
+def setColor (renderer : SDL.SDLRenderer) (color : Color) : IO Unit :=
+  SDL.setRenderDrawColor renderer color.r color.g color.b color.a *> pure ()
 
-def fillRect (x y w h : Int32) : IO Unit :=
-  SDL.renderFillRect x y w h *> pure ()
+def fillRect (renderer : SDL.SDLRenderer) (x y w h : Int32) : IO Unit :=
+  SDL.renderFillRect renderer x y w h *> pure ()
 
 def renderScene (state : EngineState) : IO Unit := do
-  setColor { r := 135, g := 206, b := 235 }
-  let _ ← SDL.renderClear
+  setColor state.renderer { r := 135, g := 206, b := 235 }
+  let _ ← SDL.renderClear state.renderer
 
-  setColor { r := 255, g := 0, b := 0 }
-  fillRect state.playerX state.playerY 100 100
+  setColor state.renderer { r := 255, g := 0, b := 0 }
+  fillRect state.renderer state.playerX state.playerY 100 100
 
   match state.texture with
   | some texture =>
-      let _ ← SDL.renderTexture texture 500 150 64 64
+      let _ ← SDL.renderTexture state.renderer texture 500 150 64 64
   | none =>
       pure ()
 
   let message := "Hello, Lean SDL!"
-  let _ ← SDL.renderText message 50 50 255 255 255 255
+  let _ ← SDL.renderText state.renderer message 50 50 255 255 255 255
   pure ()
 
 private def updateEngineState (engineState : IO.Ref EngineState) : IO Unit := do
@@ -83,7 +85,7 @@ partial def gameLoop (engineState : IO.Ref EngineState) : IO Unit := do
   let state ← engineState.get
   if state.running then
     renderScene state
-    SDL.renderPresent
+    SDL.renderPresent state.renderer
     gameLoop engineState
 
 partial def run : IO Unit := do
@@ -91,17 +93,26 @@ partial def run : IO Unit := do
     IO.println "Failed to initialize SDL"
     return
 
-  unless (← SDL.createWindow "LeanDoomed" SCREEN_WIDTH SCREEN_HEIGHT SDL.SDL_WINDOW_SHOWN) != 0 do
+  let window ← try
+    SDL.createWindow "LeanDoomed" SCREEN_WIDTH SCREEN_HEIGHT SDL.SDL_WINDOW_SHOWN
+  catch sdlError =>
     IO.println "Failed to create window"
     SDL.quit
     return
 
-  unless (← SDL.createRenderer ()) != 0 do
+  let renderer ← try
+    SDL.createRenderer window
+  catch sdlError =>
     IO.println "Failed to create renderer"
     SDL.quit
     return
 
-  let texture := (← SDL.loadTexture? "assets/wall.png")
+  let texture ← try
+    SDL.loadImageTexture renderer "assets/wall.png"
+  catch sdlError =>
+    IO.println "Failed to load texture"
+    SDL.quit
+    return
 
   unless (← SDL.ttfInit) do
     IO.println "Failed to initialize SDL_ttf"
@@ -129,6 +140,7 @@ partial def run : IO Unit := do
     return
 
   let initialState : EngineState := {
+    window := window, renderer := renderer
     deltaTime := 0.0, lastTime := 0, running := true
     playerX := (SCREEN_WIDTH / 2), playerY := (SCREEN_HEIGHT / 2)
     texture := some texture
