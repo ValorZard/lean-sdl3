@@ -74,30 +74,35 @@ target sdl.o pkg : FilePath := do
 
   buildO oFile srcJob #[] #["-fPIC", s!"-I{sdlInclude}", s!"-I{sdlImageInclude}", s!"-I{sdlTtfInclude}", s!"-I{sdlMixerInclude}", "-D_REENTRANT", s!"-I{leanInclude}"] compiler
 
-def buildSDL3 : FetchM (Unit) := do
-  let sdlRepoDir : FilePath ← (← sdlDir.fetch).await
-  logInfo "Building SDL"
-  -- Create build directory if it doesn't exist
-  let sdlBuildDirExists ← System.FilePath.pathExists (sdlRepoDir / "build")
-  if !sdlBuildDirExists then
-    let configureSdlBuild ← IO.Process.output { cmd := "cmake", args := #["-S", sdlRepoDir.toString, "-B", (sdlRepoDir / "build").toString, "-DBUILD_SHARED_LIBS=ON", "-DCMAKE_BUILD_TYPE=Release", s!"-DCMAKE_C_COMPILER={compiler}"] }
-    if configureSdlBuild.exitCode != 0 then
-      logError s!"Error configuring SDL: {configureSdlBuild.stderr}"
-    else
-      logInfo "SDL configured successfully"
-      logInfo configureSdlBuild.stdout
+def buildCMakeProject (repoDir : FilePath) (args : Array String): FetchM (Unit) := do
+  logInfo s!"Building {repoDir} with CMake with args {args}"
+
+  let buildDir := repoDir / "build"
+  let buildDirExists ← buildDir.pathExists
+
+  if !buildDirExists then
+    let configureBuild ← IO.Process.output {
+      cmd := "cmake",
+      args := #[
+        "-S", repoDir.toString,
+        "-B", buildDir.toString,
+        "-DBUILD_SHARED_LIBS=ON",
+        "-DCMAKE_BUILD_TYPE=Release",
+        s!"-DCMAKE_C_COMPILER={compiler}",] ++ args
+    }
+
+    if configureBuild.exitCode != 0 then
+      logError s!"Error configuring build: {configureBuild.stderr}"
+    logInfo "Build configured successfully"
   else
-    logInfo "SDL build directory already exists, skipping configuration step"
-  -- now actually build SDL once we've configured it
-  let buildSdl ← IO.Process.output { cmd := "cmake", args :=  #["--build", (sdlRepoDir / "build").toString, "--config", "Release"] }
-  if buildSdl.exitCode != 0 then
-    logError s!"Error building SDL: {buildSdl.exitCode}"
-    logError buildSdl.stderr
-  else
-    logInfo "SDL built successfully"
-    logInfo buildSdl.stdout
-  logInfo "SDL built successfully, copying binaries"
-  pure ()
+    logInfo "Build directory already exists, skipping configuration step"
+
+  let buildProject ← IO.Process.output { cmd := "cmake", args := #["--build", buildDir.toString, "--config", "Release"] }
+  if buildProject.exitCode != 0 then
+    logError s!"Error building project: {buildProject.exitCode}"
+    logError s!"Project build stderr: {buildProject.stderr}"
+
+  logInfo s!"{repoDir} built successfully"
 
 target libSDL3 : Dynlib := Job.async do
   let sdlRepoDir : FilePath ← (← sdlDir.fetch).await
@@ -106,32 +111,6 @@ target libSDL3 : Dynlib := Job.async do
     path := sdlRepoDir / "build" / nameToSharedLib "SDL3"
   }
 
-def buildSDL3Image : FetchM (Unit) := do
-  let sdlRepoDir : FilePath ← (<- sdlDir.fetch).await
-  let sdlImageRepoDir : FilePath ← (<- sdlImageDir.fetch).await
-  logInfo "Building SDL_image"
-  -- Create build directory if it doesn't exist
-  let sdlImageBuildDirExists ← System.FilePath.pathExists (sdlImageRepoDir / "build")
-  if !sdlImageBuildDirExists then
-    let configureSdlImageBuild ← IO.Process.output { cmd := "cmake", args :=  #["-S", sdlImageRepoDir.toString, "-B", (sdlImageRepoDir / "build").toString, s!"-DSDL3_DIR={sdlRepoDir / "build"}", "-DBUILD_SHARED_LIBS=ON", "-DCMAKE_BUILD_TYPE=Release", s!"-DCMAKE_C_COMPILER={compiler}"] }
-    if configureSdlImageBuild.exitCode != 0 then
-      logError s!"Error configuring SDL_image: {configureSdlImageBuild.stderr}"
-    else
-      logInfo "SDL_image configured successfully"
-      logInfo configureSdlImageBuild.stdout
-  else
-    logInfo "SDL_image build directory already exists, skipping configuration step"
-  -- now actually build SDL_image once we've configured it
-  let buildSdlImage ← IO.Process.output { cmd := "cmake", args :=  #["--build", (sdlImageRepoDir / "build").toString, "--config", "Release"] }
-  if buildSdlImage.exitCode != 0 then
-    logError s!"Error building SDL_image: {buildSdlImage.exitCode}"
-    logError buildSdlImage.stderr
-  else
-    logInfo "SDL_image built successfully"
-    logInfo buildSdlImage.stdout
-  -- Return built dynlib
-  logInfo "SDL_image built successfully"
-
 target libSDL3Image : Dynlib := Job.async do
   let sdlImageRepoDir : FilePath ← (← sdlImageDir.fetch).await
   return {
@@ -139,89 +118,12 @@ target libSDL3Image : Dynlib := Job.async do
     path := sdlImageRepoDir / "build" / nameToSharedLib "SDL3_image"
   }
 
-def buildSDL3Ttf : FetchM (Unit) := do
-  let sdlRepoDir : FilePath ← (<- sdlDir.fetch).await
-  let sdlTtfRepoDir : FilePath ← (<- sdlTtfDir.fetch).await
-  logInfo "Building SDL_ttf"
-  -- Create build directory if it doesn't exist
-  let sdlTtfBuildDirExists ← System.FilePath.pathExists (sdlTtfRepoDir / "build")
-  if !sdlTtfBuildDirExists then
-    -- tell SDL_ttf to vendor its own dependencies
-    let configureSdlTtfBuild ← IO.Process.output {
-        cmd := "cmake",
-        args :=  #[
-          "-S",
-          sdlTtfRepoDir.toString,
-          "-B",
-          (sdlTtfRepoDir / "build").toString,
-          s!"-DSDL3_DIR={sdlRepoDir / "build"}",
-          "-DBUILD_SHARED_LIBS=ON",
-          "-DCMAKE_BUILD_TYPE=Release",
-          s!"-DCMAKE_C_COMPILER={compiler}",
-          s!"-DSDLTTF_VENDORED=true"
-        ]
-      }
-    if configureSdlTtfBuild.exitCode != 0 then
-      logError s!"Error configuring SDL_ttf: {configureSdlTtfBuild.stderr}"
-    else
-      logInfo "SDL_ttf configured successfully"
-      logInfo configureSdlTtfBuild.stdout
-  else
-    logInfo "SDL_ttf build directory already exists, skipping configuration step"
-  -- now actually build SDL_ttf once we've configured it
-  let buildSdlTtf ← IO.Process.output { cmd := "cmake", args :=  #["--build", (sdlTtfRepoDir / "build").toString, "--config", "Release"] }
-  if buildSdlTtf.exitCode != 0 then
-    logError s!"Error building SDL_ttf: {buildSdlTtf.exitCode}"
-    logError buildSdlTtf.stderr
-  else
-    logInfo "SDL_ttf built successfully"
-    logInfo buildSdlTtf.stdout
-  -- Return built dynlib
-  logInfo "SDL_ttf built successfully"
-
 target libSDL3Ttf : Dynlib := Job.async do
   let sdlTtfRepoDir : FilePath ← (← sdlTtfDir.fetch).await
   return {
     name := "SDL3_ttf"
     path := sdlTtfRepoDir / "build" / nameToSharedLib "SDL3_ttf"
   }
-
-def buildSDL3Mixer : FetchM (Unit) := do
-  let sdlRepoDir : FilePath ← (← sdlDir.fetch).await
-  let sdlMixerRepoDir : FilePath ← (← sdlMixerDir.fetch).await
-
-  logInfo "Building SDL_mixer"
-
-  let sdlMixerBuildDir := sdlMixerRepoDir / "build"
-  let sdlMixerBuildDirExists ← sdlMixerBuildDir.pathExists
-
-  if !sdlMixerBuildDirExists then
-    let configureSdlMixerBuild ← IO.Process.output {
-      cmd := "cmake",
-      args := #[
-        "-S", sdlMixerRepoDir.toString,
-        "-B", sdlMixerBuildDir.toString,
-        s!"-DSDL3_DIR={sdlRepoDir / "build"}",
-        "-DBUILD_SHARED_LIBS=ON",
-        "-DCMAKE_BUILD_TYPE=Release",
-        s!"-DCMAKE_C_COMPILER={compiler}",
-        s!"-DCMAKE_PREFIX_PATH={sdlRepoDir / "build"}",
-        s!"-DSDLTTF_VENDORED=true"
-      ]
-    }
-
-    if configureSdlMixerBuild.exitCode != 0 then
-      logError s!"Error configuring SDL_mixer: {configureSdlMixerBuild.stderr}"
-    logInfo "SDL_mixer configured successfully"
-  else
-    logInfo "SDL_mixer build directory already exists, skipping configuration step"
-
-  let buildSdlMixer ← IO.Process.output { cmd := "cmake", args := #["--build", sdlMixerBuildDir.toString, "--config", "Release"] }
-  if buildSdlMixer.exitCode != 0 then
-    logError s!"Error building SDL_mixer: {buildSdlMixer.exitCode}"
-    logError s!"SDL_mixer build stderr: {buildSdlMixer.stderr}"
-
-  logInfo "SDL_mixer built successfully"
 
 target libSDL3Mixer : Dynlib := Job.async do
   let sdlMixerRepoDir : FilePath ← (← sdlMixerDir.fetch).await
@@ -243,10 +145,11 @@ target libleansdl pkg : FilePath := do
   cloneGitRepo sdlMixerGitRepo sdlMixerGitRev sdlMixerRepoDir
 
   -- build all the libraries we need
-  buildSDL3
-  buildSDL3Image
-  buildSDL3Ttf
-  buildSDL3Mixer
+  buildCMakeProject sdlRepoDir #[]
+  let sdlRepoBuildDir := sdlRepoDir / "build"
+  buildCMakeProject sdlImageRepoDir #["-DSDL3_DIR=" ++ sdlRepoBuildDir.toString]
+  buildCMakeProject sdlTtfRepoDir #["-DSDL3_DIR=" ++ sdlRepoBuildDir.toString,  s!"-DSDLTTF_VENDORED=true"]
+  buildCMakeProject sdlMixerRepoDir #["-DSDL3_DIR=" ++ sdlRepoBuildDir.toString,  s!"-DSDLMIXER_VENDORED=true"]
 
   logInfo "All libraries built successfully"
 
