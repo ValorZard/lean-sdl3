@@ -10,7 +10,7 @@ structure EngineState where
   window : SDL.SDLWindow
   renderer : SDL.SDLRenderer
   deltaTime : Float
-  lastTime : UInt32
+  lastTime : UInt64
   running : Bool
   playerX : Int32
   playerY : Int32

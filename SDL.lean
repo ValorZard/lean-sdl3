@@ -79,7 +79,7 @@ opaque delay : UInt32 → IO Unit
 opaque pollEvent : IO UInt32
 
 @[extern "sdl_get_ticks"]
-opaque getTicks : IO UInt32
+opaque getTicks : IO UInt64
 
 @[extern "sdl_get_key_state"]
 opaque getKeyState : UInt32 → IO Bool

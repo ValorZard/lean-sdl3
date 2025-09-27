@@ -203,8 +203,8 @@ lean_obj_res sdl_poll_event(lean_obj_arg w) {
 }
 
 lean_obj_res sdl_get_ticks(lean_obj_arg w) {
-    uint32_t ticks = SDL_GetTicks();
-    return lean_io_result_mk_ok(lean_box_uint32(ticks));
+    uint64_t ticks = SDL_GetTicks();
+    return lean_io_result_mk_ok(lean_box_uint64(ticks));
 }
 
 lean_obj_res sdl_get_key_state(uint32_t scancode, lean_obj_arg w) {
