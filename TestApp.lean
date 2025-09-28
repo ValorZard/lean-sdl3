@@ -47,14 +47,16 @@ def renderScene (state : EngineState) : IO Unit := do
   setColor state.renderer { r := 255, g := 0, b := 0 }
   fillRect state.renderer state.playerX state.playerY 100 100
 
-  let _ ← SDL.renderTexture state.renderer state.texture 500 150 64 64
+  let _ ← SDL.renderEntireTexture state.renderer state.texture 500 150 64 64
+
+  let _ ← SDL.renderTexture state.renderer state.texture 0 0 10 30 100 150 64 100
 
   let message := "Hello, Lean SDL!"
   let textSurface ← SDL.textToSurface state.renderer state.font message 50 50 255 255 255 255
   let textTexture ← SDL.createTextureFromSurface state.renderer textSurface
   let textWidth ← SDL.getTextureWidth textTexture
   let textHeight ← SDL.getTextureHeight textTexture
-  let _ ← SDL.renderTexture state.renderer textTexture 50 50 textWidth textHeight
+  let _ ← SDL.renderEntireTexture state.renderer textTexture 50 50 textWidth textHeight
   pure ()
 
 private def updateEngineState (engineState : IO.Ref EngineState) : IO Unit := do

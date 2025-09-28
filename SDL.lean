@@ -113,8 +113,11 @@ instance SDLFont.instNonempty : Nonempty SDLFont := SDLFont.nonemptyType.propert
 @[extern "sdl_load_font"]
 opaque loadFont : System.FilePath → UInt32 → SDLIO SDLFont
 
+@[extern "sdl_render_entire_texture"]
+opaque renderEntireTexture (renderer : @& SDLRenderer) (texture : @& SDLTexture) (x : Int64) (y : Int64) (w : Int64) (h : Int64) : SDLIO Int32
+
 @[extern "sdl_render_texture"]
-opaque renderTexture (renderer : @& SDLRenderer) (texture : @& SDLTexture) (x : Int64) (y : Int64) (w : Int64) (h : Int64) : SDLIO Int32
+opaque renderTexture (renderer : @& SDLRenderer) (texture : @& SDLTexture) (srcX : Int64) (srcY : Int64) (srcW : Int64) (srcH : Int64) (dstX : Int64) (dstY : Int64) (dstW : Int64) (dstH : Int64) : SDLIO Int32
 
 @[extern "sdl_get_texture_width"]
 opaque getTextureWidth (texture : @& SDLTexture) : SDLIO Int64

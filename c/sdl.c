@@ -342,7 +342,20 @@ lean_obj_res sdl_get_texture_height(lean_object * g_texture, lean_obj_arg w) {
     return lean_io_result_mk_ok(lean_box_uint64(height));
 }
 
-lean_obj_res sdl_render_texture(lean_object* g_renderer, lean_object * g_texture, int64_t dst_x, int64_t dst_y, int64_t dst_width, int64_t dst_height, lean_obj_arg w) {
+lean_obj_res sdl_render_texture(lean_object* g_renderer, lean_object * g_texture, int64_t src_x, int64_t src_y, int64_t src_width, int64_t src_height, int64_t dst_x, int64_t dst_y, int64_t dst_width, int64_t dst_height, lean_obj_arg w) {
+    if (!g_renderer || !g_texture) return lean_io_result_mk_ok(lean_box_uint32(-1));
+
+    SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(g_renderer);
+    SDL_Texture* texture = (SDL_Texture*)lean_get_external_data(g_texture);
+
+    SDL_FRect src_rect = { (float)src_x, (float)src_y, (float)src_width, (float)src_height };
+
+    SDL_FRect dst_rect = { (float)dst_x, (float)dst_y, (float)dst_width, (float)dst_height };
+
+    return lean_io_result_mk_ok(lean_box_uint32(SDL_RenderTexture(renderer, texture, &src_rect, &dst_rect)));
+}
+
+lean_obj_res sdl_render_entire_texture(lean_object* g_renderer, lean_object * g_texture, int64_t dst_x, int64_t dst_y, int64_t dst_width, int64_t dst_height, lean_obj_arg w) {
     if (!g_renderer || !g_texture) return lean_io_result_mk_ok(lean_box_uint32(-1));
 
     SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(g_renderer);
