@@ -162,6 +162,9 @@ lean_obj_res sdl_create_renderer(lean_object * g_window, lean_obj_arg w) {
     return lean_io_result_mk_ok(external_renderer);
 }
 
+// lean_obj_res sdl_create_window_and_renderer(lean_obj_arg title, uint32_t w, uint32_t h, uint32_t flags, lean_obj_arg world) {
+// }
+
 lean_obj_res sdl_set_render_draw_color(lean_object * g_renderer, uint8_t r, uint8_t g, uint8_t b, uint8_t a, lean_obj_arg w) {
     SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(g_renderer);
     if (renderer == NULL) return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string("C: Renderer is NULL")));
