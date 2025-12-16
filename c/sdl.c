@@ -142,7 +142,7 @@ lean_obj_res sdl_quit(lean_obj_arg w) {
     return lean_io_result_mk_ok(lean_box(0));
 }
 
-lean_obj_res sdl_create_window(lean_obj_arg title, uint32_t w, uint32_t h, uint32_t flags, lean_obj_arg world) {
+lean_obj_res sdl_create_window(lean_obj_arg title, uint32_t w, uint32_t h, uint32_t flags) {
     const char* title_str = lean_string_cstr(title);
     SDL_Window* g_window = SDL_CreateWindow(title_str, (int)w, (int)h, flags);
     if (g_window == NULL) {
@@ -152,7 +152,7 @@ lean_obj_res sdl_create_window(lean_obj_arg title, uint32_t w, uint32_t h, uint3
     return lean_io_result_mk_ok(external_window);
 }
 
-lean_obj_res sdl_create_renderer(lean_object * g_window, lean_obj_arg w) {
+lean_obj_res sdl_create_renderer(lean_object * g_window) {
     SDL_Window* window = (SDL_Window*)lean_get_external_data(g_window);
     SDL_Renderer* g_renderer = SDL_CreateRenderer(window, NULL);
     if (g_renderer == NULL) {
