@@ -51,14 +51,19 @@ opaque quit : IO Unit
 private opaque SDLWindow.nonemptyType : NonemptyType
 def SDLWindow : Type := SDLWindow.nonemptyType.type
 instance SDLWindow.instNonempty : Nonempty SDLWindow := SDLWindow.nonemptyType.property
+
 @[extern "sdl_create_window"]
 opaque createWindow : String → Int32 → Int32 → UInt32 → SDLIO SDLWindow
 
 private opaque SDLRenderer.nonemptyType : NonemptyType
 def SDLRenderer : Type := SDLRenderer.nonemptyType.type
 instance SDLRenderer.instNonempty : Nonempty SDLRenderer := SDLRenderer.nonemptyType.property
+
 @[extern "sdl_create_renderer"]
 opaque createRenderer : @& SDLWindow → SDLIO SDLRenderer
+
+@[extern "sdl_create_window_and_renderer"]
+opaque createWindowAndRenderer : String -> Int32 -> Int32 -> UInt32 -> SDLIO (SDLWindow × SDLRenderer)
 
 @[extern "sdl_set_render_draw_color"]
 opaque setRenderDrawColor : @& SDLRenderer → UInt8 → UInt8 → UInt8 → UInt8 → SDLIO Int32

@@ -41,7 +41,7 @@ def fillRect (renderer : SDL.SDLRenderer) (x y w h : Int32) : IO Unit :=
   SDL.renderFillRect renderer x y w h *> pure ()
 
 def renderScene (state : EngineState) : IO Unit := do
-  setColor state.renderer { r := 135, g := 206, b := 235 }
+  setColor state.renderer { r := 0, g := 0, b := 235 }
   let _ ← SDL.renderClear state.renderer
 
   setColor state.renderer { r := 255, g := 0, b := 0 }
@@ -99,15 +99,8 @@ partial def run : IO Unit := do
     IO.println "Failed to initialize SDL"
     return
 
-  let window ← try
-    SDL.createWindow "WebcamTest" SCREEN_WIDTH SCREEN_HEIGHT SDL.SDL_WINDOW_SHOWN
-  catch sdlError =>
-    IO.println sdlError
-    SDL.quit
-    return
-
-  let renderer ← try
-    SDL.createRenderer window
+  let (window, renderer) ← try
+    SDL.createWindowAndRenderer "WebcamTest" SCREEN_WIDTH SCREEN_HEIGHT SDL.SDL_WINDOW_SHOWN
   catch sdlError =>
     IO.println sdlError
     SDL.quit

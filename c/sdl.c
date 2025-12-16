@@ -162,8 +162,27 @@ lean_obj_res sdl_create_renderer(lean_object * g_window) {
     return lean_io_result_mk_ok(external_renderer);
 }
 
-// lean_obj_res sdl_create_window_and_renderer(lean_obj_arg title, uint32_t w, uint32_t h, uint32_t flags, lean_obj_arg world) {
-// }
+lean_obj_res sdl_create_window_and_renderer(lean_obj_arg title, uint32_t w, uint32_t h, uint32_t flags) {
+    const char* title_str = lean_string_cstr(title);
+    SDL_Window* g_window = NULL;
+    SDL_Renderer* g_renderer = NULL;
+
+    //TODO: use SDL_GetError()
+    if (!SDL_CreateWindowAndRenderer(title_str, (int)w, (int)h, flags, &g_window, &g_renderer)) {
+        return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string("C: SDL_CreateWindowAndRenderer failed")));
+    }
+
+    // Wrap the SDL objects in Lean external objects
+    lean_object* external_window = lean_alloc_external(sdl_window_external_class, g_window);
+    lean_object* external_renderer = lean_alloc_external(sdl_renderer_external_class, g_renderer);
+
+    // Create a Prod (pair) - Prod.mk has tag 0, 2 object fields, 0 scalar fields
+    lean_object* pair = lean_alloc_ctor(0, 2, 0);
+    lean_ctor_set(pair, 0, external_window);    // first field (fst)
+    lean_ctor_set(pair, 1, external_renderer);  // second field (snd)
+
+    return lean_io_result_mk_ok(pair);
+}
 
 lean_obj_res sdl_set_render_draw_color(lean_object * g_renderer, uint8_t r, uint8_t g, uint8_t b, uint8_t a, lean_obj_arg w) {
     SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(g_renderer);
