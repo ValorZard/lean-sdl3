@@ -10,8 +10,6 @@ build:
 run: build
     .lake/build/bin/test-app
 
-
-
 webcam:
     lake build webcam-app
     patchelf --set-interpreter /usr/lib/ld-linux-x86-64.so.2 .lake/build/bin/webcam-app

@@ -11,7 +11,7 @@ abbrev SDLIO := EIO SDLError
 
 @[inline, always_inline]
 def SDLIO.toIO (x : SDLIO α) : IO α :=
-  x.adaptExcept fun e => IO.userError s!"SDL Error: {e}"
+  x.adapt fun e => IO.userError s!"SDL Error: {e}"
 
 instance : MonadLift SDLIO IO := ⟨SDLIO.toIO⟩
 
