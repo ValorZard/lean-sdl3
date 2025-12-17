@@ -15,7 +15,9 @@ def SDLIO.toIO (x : SDLIO α) : IO α :=
 
 instance : MonadLift SDLIO IO := ⟨SDLIO.toIO⟩
 
+-- see https://wiki.libsdl.org/SDL3/SDL_InitFlags
 def SDL_INIT_VIDEO : UInt32 := 0x00000020
+def SDL_INIT_CAMERA: UInt32 := 0x00010000
 def SDL_WINDOW_SHOWN : UInt32 := 0x00000004
 def SDL_RENDERER_ACCELERATED : UInt32 := 0x00000002
 def SDL_QUIT : UInt32 := 0x100
@@ -181,5 +183,10 @@ opaque setTrackAudio : @& SDLTrack → @& SDLAudio → SDLIO Bool
 
 @[extern "sdl_play_track"]
 opaque playTrack : @& SDLTrack → SDLIO Bool
+
+-- Webcam
+
+@[extern "sdl_get_cameras"]
+opaque getCameras : SDLIO (List UInt32)
 
 end SDL

@@ -205,7 +205,7 @@ lean_obj_res sdl_render_present(lean_object * g_renderer, lean_obj_arg w) {
     return lean_io_result_mk_ok(lean_box(0));
 }
 
-lean_obj_res sdl_render_fill_rect(lean_object * g_renderer, uint32_t x, uint32_t y, uint32_t w, uint32_t h, lean_obj_arg world) {
+lean_obj_res sdl_render_fill_rect(lean_object * g_renderer, uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
     SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(g_renderer);
     if (renderer == NULL) return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string("C: Renderer is NULL")));
     SDL_FRect rect = {(float)x, (float)y, (float)w, (float)h};
@@ -213,7 +213,7 @@ lean_obj_res sdl_render_fill_rect(lean_object * g_renderer, uint32_t x, uint32_t
     return lean_io_result_mk_ok(lean_box_uint32(result));
 }
 
-lean_obj_res sdl_delay(uint32_t ms, lean_obj_arg w) {
+lean_obj_res sdl_delay(uint32_t ms) {
     SDL_Delay(ms);
     return lean_io_result_mk_ok(lean_box(0));
 }
@@ -386,6 +386,37 @@ lean_obj_res sdl_render_entire_texture(lean_object* g_renderer, lean_object * g_
     SDL_FRect dst_rect = { (float)dst_x, (float)dst_y, (float)dst_width, (float)dst_height };
 
     return lean_io_result_mk_ok(lean_box_uint32(SDL_RenderTexture(renderer, texture, NULL, &dst_rect)));
+}
+
+
+lean_obj_res sdl_get_cameras(lean_obj_arg w) {
+    int count = 0;
+    SDL_CameraID* devices = SDL_GetCameras(&count);
+    if (devices == NULL) {
+        return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
+    }
+
+    SDL_Log("SDL_CameraID devices count %d\n", count);
+
+    // Build Lean list by iterating backwards through the array
+    // List.nil has constructor tag 0, 0 object fields, 0 scalar fields
+    lean_object* list = lean_alloc_ctor(0, 0, 0);  // Start with empty list (nil)
+
+    for (int i = count - 1; i >= 0; i--) {
+        // Box the camera ID (SDL_CameraID is a uint32_t)
+        lean_object* camera_id = lean_box_uint32(devices[i]);
+
+        // List.cons has constructor tag 1, 2 object fields (head, tail)
+        lean_object* cons = lean_alloc_ctor(1, 2, 0);
+        lean_ctor_set(cons, 0, camera_id);  // head
+        lean_ctor_set(cons, 1, list);        // tail
+
+        list = cons;
+    }
+
+    SDL_free(devices);  // Free the SDL array
+
+    return lean_io_result_mk_ok(list);
 }
 
 

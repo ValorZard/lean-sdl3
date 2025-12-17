@@ -95,7 +95,7 @@ partial def gameLoop (engineState : IO.Ref EngineState) : IO Unit := do
     gameLoop engineState
 
 partial def run : IO Unit := do
-  unless (← SDL.init SDL.SDL_INIT_VIDEO) == 1 do
+  unless (← SDL.init (SDL.SDL_INIT_VIDEO ||| SDL.SDL_INIT_CAMERA)) == 1 do
     IO.println "Failed to initialize SDL"
     return
 
@@ -158,12 +158,15 @@ partial def run : IO Unit := do
     SDL.quit
     return
 
-  match (← SDL.playTrack track) with
-  | true => pure ()
-  | false =>
-    IO.println s!"Failed to play track"
-    SDL.quit
-    return
+  /- match (← SDL.playTrack track) with -/
+  /- | true => pure () -/
+  /- | false => -/
+  /-   IO.println s!"Failed to play track" -/
+  /-   SDL.quit -/
+  /-   return -/
+
+  let cameraCount <- SDL.getCameras
+  IO.println s!"Camera count: {cameraCount}"
 
   let initialState : EngineState := {
     window := window, renderer := renderer
