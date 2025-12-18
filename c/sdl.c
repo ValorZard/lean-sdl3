@@ -96,6 +96,12 @@ static void sdl_mixer_audio_finalizer(void * h) {
 static void sdl_mixer_audio_foreach(void * val, lean_obj_arg fn) {
 
 }
+static lean_external_class * sdl_camera_external_class = NULL;
+static void sdl_camera_foreach(void * val, lean_obj_arg fn) {
+
+}
+static void sdl_camera_finalizer(void * h) {
+}
 
 lean_obj_res sdl_init(uint32_t flags, lean_obj_arg w) {
     int32_t result = SDL_Init(flags);
@@ -105,6 +111,7 @@ lean_obj_res sdl_init(uint32_t flags, lean_obj_arg w) {
     sdl_window_external_class = lean_register_external_class(sdl_window_finalizer, sdl_window_foreach);
     sdl_renderer_external_class = lean_register_external_class(sdl_renderer_finalizer, sdl_renderer_foreach);
     sdl_surface_external_class = lean_register_external_class(sdl_surface_finalizer, sdl_surface_foreach);
+    sdl_camera_external_class = lean_register_external_class(sdl_camera_finalizer, sdl_camera_foreach);
 
     return lean_io_result_mk_ok(lean_box_uint32(result));
 }
@@ -389,7 +396,7 @@ lean_obj_res sdl_render_entire_texture(lean_object* g_renderer, lean_object * g_
 }
 
 
-lean_obj_res sdl_get_cameras(lean_obj_arg w) {
+lean_obj_res sdl_get_cameras() {
     int count = 0;
     SDL_CameraID* devices = SDL_GetCameras(&count);
     if (devices == NULL) {
@@ -417,6 +424,18 @@ lean_obj_res sdl_get_cameras(lean_obj_arg w) {
     SDL_free(devices);  // Free the SDL array
 
     return lean_io_result_mk_ok(list);
+}
+
+
+//TODO: implement 2nd SDL_CameraSpec arg
+lean_obj_res sdl_open_camera(uint32_t instance_id) {
+
+    SDL_Camera* camera = SDL_OpenCamera(instance_id, NULL);
+    if (camera == NULL) {
+        return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
+    }
+    lean_object* external_camera = lean_alloc_external(sdl_camera_external_class, camera);
+    return lean_io_result_mk_ok(external_camera);
 }
 
 
