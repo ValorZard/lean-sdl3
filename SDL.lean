@@ -192,7 +192,7 @@ opaque getCameras : SDLIO (List UInt32)
 private opaque SDLCamera.nonemptyType : NonemptyType
 def SDLCamera : Type := SDLCamera.nonemptyType.type
 instance SDLCamera.instNonempty : Nonempty SDLCamera := SDLCamera.nonemptyType.property
-@[extern "sdl_get_cameras"]
-opaque openCamera : SDLIO UInt32 -> SDLCamera
+@[extern "sdl_open_camera"]
+opaque openCamera : UInt32 -> SDLIO SDLCamera
 
 end SDL

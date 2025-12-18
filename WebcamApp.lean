@@ -168,6 +168,9 @@ partial def run : IO Unit := do
   let cameraCount <- SDL.getCameras
   IO.println s!"Camera count: {cameraCount}"
 
+  let idx := cameraCount[0]!
+  let camera <- SDL.openCamera idx
+
   let initialState : EngineState := {
     window := window, renderer := renderer
     deltaTime := 0.0, lastTime := 0, running := true
