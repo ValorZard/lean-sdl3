@@ -195,4 +195,28 @@ instance SDLCamera.instNonempty : Nonempty SDLCamera := SDLCamera.nonemptyType.p
 @[extern "sdl_open_camera"]
 opaque openCamera : UInt32 -> SDLIO SDLCamera
 
+-- cameraspec stuff
+private opaque PixelFormat.nonemptyType : NonemptyType
+def PixelFormat : Type := PixelFormat.nonemptyType.type
+instance PixelFormat.instNonempty : Nonempty PixelFormat := PixelFormat.nonemptyType.property
+
+private opaque Colorspace.nonemptyType : NonemptyType
+def Colorspace : Type := Colorspace.nonemptyType.type
+instance Colorspace.instNonempty : Nonempty Colorspace := Colorspace.nonemptyType.property
+
+structure CameraSpec.Model where
+  format : PixelFormat
+  colorspace : Colorspace
+  width : Int32
+  height : Int32
+  framerateNumerator : Int32
+  framerateDenominator : Int32
+
+private opaque CameraSpec.nonemptyType : NonemptyType
+def CameraSpec : Type := CameraSpec.nonemptyType.type
+instance CameraSpec.instNonempty : Nonempty CameraSpec := CameraSpec.nonemptyType.property
+
+@[extern "sdl_get_camera_format"]
+opaque getCameraFormat : @& SDLCamera -> SDLIO CameraSpec
+
 end SDL

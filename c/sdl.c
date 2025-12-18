@@ -102,6 +102,12 @@ static void sdl_camera_foreach(void * val, lean_obj_arg fn) {
 }
 static void sdl_camera_finalizer(void * h) {
 }
+static lean_external_class * sdl_camera_spec_external_class = NULL;
+static void sdl_camera_spec_foreach(void * val, lean_obj_arg fn) {
+
+}
+static void sdl_camera_spec_finalizer(void * h) {
+}
 
 lean_obj_res sdl_init(uint32_t flags, lean_obj_arg w) {
     int32_t result = SDL_Init(flags);
@@ -112,6 +118,7 @@ lean_obj_res sdl_init(uint32_t flags, lean_obj_arg w) {
     sdl_renderer_external_class = lean_register_external_class(sdl_renderer_finalizer, sdl_renderer_foreach);
     sdl_surface_external_class = lean_register_external_class(sdl_surface_finalizer, sdl_surface_foreach);
     sdl_camera_external_class = lean_register_external_class(sdl_camera_finalizer, sdl_camera_foreach);
+    sdl_camera_spec_external_class = lean_register_external_class(sdl_camera_spec_finalizer, sdl_camera_spec_foreach);
 
     return lean_io_result_mk_ok(lean_box_uint32(result));
 }
@@ -438,6 +445,17 @@ lean_obj_res sdl_open_camera(uint32_t instance_id) {
     return lean_io_result_mk_ok(external_camera);
 }
 
+
+lean_obj_res sdl_get_camera_format(lean_object* camera_obj) {
+    SDL_Camera* camera = (SDL_Camera*)lean_get_external_data(camera_obj);
+    SDL_CameraSpec spec;
+    bool result = SDL_GetCameraFormat(camera, &spec);
+    if (!result) {
+        return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
+    }
+    lean_object* camera_spec = lean_alloc_external(sdl_camera_spec_external_class, &spec);
+    return lean_io_result_mk_ok(camera_spec);
+}
 
 
 // Mouse support (caching avoids redundant SDL calls within the same frame)
