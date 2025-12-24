@@ -97,6 +97,10 @@ opaque getTicks : IO UInt64
 @[extern "sdl_get_key_state"]
 opaque getKeyState : UInt32 → IO Bool
 
+private opaque PixelFormat.nonemptyType : NonemptyType
+def PixelFormat : Type := PixelFormat.nonemptyType.type
+instance PixelFormat.instNonempty : Nonempty PixelFormat := PixelFormat.nonemptyType.property
+
 -- make SDLTexture an opaque type, and make sure to tell Lean that it is nonempty
 private opaque SDLTexture.nonemptyType : NonemptyType
 def SDLTexture : Type := SDLTexture.nonemptyType.type
@@ -206,9 +210,6 @@ instance SDLCamera.instNonempty : Nonempty SDLCamera := SDLCamera.nonemptyType.p
 opaque openCamera : UInt32 -> SDLIO SDLCamera
 
 -- cameraspec stuff
-private opaque PixelFormat.nonemptyType : NonemptyType
-def PixelFormat : Type := PixelFormat.nonemptyType.type
-instance PixelFormat.instNonempty : Nonempty PixelFormat := PixelFormat.nonemptyType.property
 
 private opaque Colorspace.nonemptyType : NonemptyType
 def Colorspace : Type := Colorspace.nonemptyType.type
