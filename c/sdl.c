@@ -263,6 +263,13 @@ lean_obj_res sdl_image_load(lean_obj_arg filename, lean_obj_arg w) {
     return lean_io_result_mk_ok(external_surface);
 }
 
+lean_obj_res sdl_create_texture(b_lean_obj_arg renderer_obj, uint32_t texture_access, uint32_t width, uint32_t height) {
+    SDL_Renderer * renderer = (SDL_Renderer *)lean_get_external_data(renderer_obj);
+    uint32_t format;
+    // TODO: deal with int vs uint32_t issue
+    SDL_Texture* texture = SDL_CreateTexture(renderer, format, (SDL_TextureAccess)texture_access, width, height);
+}
+
 lean_obj_res sdl_create_texture_from_surface(lean_object * g_renderer, lean_object * g_surface, lean_obj_arg w) {
     SDL_Renderer * renderer = (SDL_Renderer *)lean_get_external_data(g_renderer);
     SDL_Surface * surface = (SDL_Surface *)lean_get_external_data(g_surface);

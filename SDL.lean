@@ -38,6 +38,12 @@ def SDL_BUTTON_LEFT : UInt32 := 1
 def SDL_BUTTON_MIDDLE : UInt32 := 2
 def SDL_BUTTON_RIGHT : UInt32 := 4
 
+
+-- see SDL_Render.h, SDL_TextureAccess
+def SDL_TEXTUREACCESS_STATIC : UInt32 := 0x0
+def SDL_TEXTUREACCESS_STREAMING : UInt32 := 0x1
+def SDL_TEXTUREACCESS_TARGET :UInt32 := 0x2
+
 @[extern "sdl_init"]
 opaque init : UInt32 → IO UInt32
 
@@ -102,6 +108,10 @@ instance SDLSurface.instNonempty : Nonempty SDLSurface := SDLSurface.nonemptyTyp
 @[extern "sdl_image_load"]
 -- @& means "by reference"
 opaque loadImage :  (path : @& System.FilePath) → SDLIO SDLSurface
+
+-- TODO: add pixelformat and textureaccess params
+@[extern "sdl_create_texture"]
+opaque createTexture (renderer: @& SDLRenderer) (textureAccess: UInt32) (w: UInt32) (h: UInt32): SDLIO SDLTexture
 
 @[extern "sdl_create_texture_from_surface"]
 opaque createTextureFromSurface
