@@ -109,6 +109,14 @@ instance SDLTexture.instNonempty : Nonempty SDLTexture := SDLTexture.nonemptyTyp
 private opaque SDLSurface.nonemptyType : NonemptyType
 def SDLSurface : Type := SDLSurface.nonemptyType.type
 instance SDLSurface.instNonempty : Nonempty SDLSurface := SDLSurface.nonemptyType.property
+
+namespace SDLSurface
+
+@[extern "sdl_Surface_get_format"]
+opaque format : @& SDLSurface -> UInt32
+
+end SDLSurface
+
 @[extern "sdl_image_load"]
 -- @& means "by reference"
 opaque loadImage :  (path : @& System.FilePath) → SDLIO SDLSurface
