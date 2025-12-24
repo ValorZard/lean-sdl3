@@ -454,7 +454,7 @@ void print_lean_object(lean_object* obj) {
     printf("obj->m_tag: %u\n", obj->m_tag);
 }
 
-lean_obj_res sdl_get_camera_format(lean_object* camera_obj) {
+lean_obj_res sdl_get_camera_format(b_lean_obj_arg camera_obj) {
     SDL_Camera* camera = (SDL_Camera*)lean_get_external_data(camera_obj);
     SDL_CameraSpec* spec = (SDL_CameraSpec*) malloc(sizeof(SDL_CameraSpec));
     bool result = SDL_GetCameraFormat(camera, spec);
@@ -467,35 +467,35 @@ lean_obj_res sdl_get_camera_format(lean_object* camera_obj) {
     return lean_io_result_mk_ok(camera_spec);
 }
 
-uint32_t sdl_CameraSpec_get_width(lean_object* camera_spec_obj) {
+uint32_t sdl_CameraSpec_get_width(b_lean_obj_arg camera_spec_obj) {
     print_lean_object(camera_spec_obj);
     SDL_CameraSpec* camera_spec = (SDL_CameraSpec*)lean_get_external_data(camera_spec_obj);
     uint32_t width = (uint32_t)camera_spec->width;
     return width;
 }
 
-uint32_t sdl_CameraSpec_get_height(lean_object* camera_spec_obj) {
+uint32_t sdl_CameraSpec_get_height(b_lean_obj_arg camera_spec_obj) {
     print_lean_object(camera_spec_obj);
     SDL_CameraSpec* camera_spec = (SDL_CameraSpec*)lean_get_external_data(camera_spec_obj);
     uint32_t height = (uint32_t)camera_spec->height;
     return height;
 }
 
-uint32_t sdl_CameraSpec_get_framerate_numerator(lean_object* camera_spec_obj) {
+uint32_t sdl_CameraSpec_get_framerate_numerator(b_lean_obj_arg camera_spec_obj) {
     print_lean_object(camera_spec_obj);
     SDL_CameraSpec* camera_spec = (SDL_CameraSpec*)lean_get_external_data(camera_spec_obj);
     uint32_t framerate_numerator = (uint32_t)camera_spec->framerate_numerator;
     return framerate_numerator;
 }
 
-uint32_t sdl_CameraSpec_get_framerate_denominator(lean_object* camera_spec_obj) {
+uint32_t sdl_CameraSpec_get_framerate_denominator(b_lean_obj_arg camera_spec_obj) {
     print_lean_object(camera_spec_obj);
     SDL_CameraSpec* camera_spec = (SDL_CameraSpec*)lean_get_external_data(camera_spec_obj);
     uint32_t framerate_denominator = (uint32_t)camera_spec->framerate_denominator;
     return framerate_denominator;
 }
 
-lean_obj_res sdl_acquire_camera_frame(lean_obj_arg camera_obj) {
+lean_obj_res sdl_acquire_camera_frame(b_lean_obj_arg camera_obj) {
     SDL_Camera* camera = (SDL_Camera*)lean_get_external_data(camera_obj);
     uint64_t timestamp = 0;
     SDL_Surface* frame = SDL_AcquireCameraFrame(camera, &timestamp);
@@ -506,7 +506,7 @@ lean_obj_res sdl_acquire_camera_frame(lean_obj_arg camera_obj) {
     return lean_io_result_mk_ok(external_surface);
 }
 
-lean_obj_res sdl_release_camera_frame(lean_obj_arg camera_obj, lean_obj_arg frame_obj) {
+lean_obj_res sdl_release_camera_frame(b_lean_obj_arg camera_obj, lean_obj_arg frame_obj) {
     SDL_Camera* camera = (SDL_Camera*)lean_get_external_data(camera_obj);
     SDL_Surface* frame = (SDL_Surface*)lean_get_external_data(frame_obj);
 
