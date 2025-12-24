@@ -495,6 +495,17 @@ uint32_t sdl_CameraSpec_get_framerate_denominator(lean_object* camera_spec_obj) 
     return framerate_denominator;
 }
 
+lean_obj_res sdl_acquire_camera_frame(lean_obj_arg camera_obj) {
+    SDL_Camera* camera = (SDL_Camera*)lean_get_external_data(camera_obj);
+
+    SDL_Surface* frame = SDL_AcquireCameraFrame(camera, NULL);
+    if (!frame) {
+        return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
+    }
+    lean_object* external_surface = lean_alloc_external(sdl_surface_external_class, frame);
+    return lean_io_result_mk_ok(external_surface);
+}
+
 
 // Mouse support (caching avoids redundant SDL calls within the same frame)
 static struct {

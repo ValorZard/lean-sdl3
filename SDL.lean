@@ -228,4 +228,7 @@ end CameraSpec
 @[extern "sdl_get_camera_format"]
 opaque getCameraFormat : @& SDLCamera -> SDLIO CameraSpec
 
+@[extern "sdl_acquire_camera_frame"]
+opaque acquireCameraFrame :  (camera : @& SDLCamera) → SDLIO SDLSurface
+
 end SDL
