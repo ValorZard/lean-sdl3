@@ -115,6 +115,12 @@ namespace SDLSurface
 @[extern "sdl_Surface_get_format"]
 opaque format : @& SDLSurface -> UInt32
 
+@[extern "sdl_Surface_get_w"]
+opaque w : @& SDLSurface -> Int32
+
+@[extern "sdl_Surface_get_h"]
+opaque h : @& SDLSurface -> Int32
+
 end SDLSurface
 
 @[extern "sdl_image_load"]

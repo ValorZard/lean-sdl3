@@ -278,6 +278,16 @@ uint32_t sdl_Surface_get_format(b_lean_obj_arg surface_obj) {
     return (uint32_t)surface->format;
 }
 
+int32_t sdl_Surface_get_w(b_lean_obj_arg surface_obj) {
+    SDL_Surface* surface = (SDL_Surface*)lean_get_external_data(surface_obj);
+    return (int32_t)surface->w;
+}
+
+int32_t sdl_Surface_get_h(b_lean_obj_arg surface_obj) {
+    SDL_Surface* surface = (SDL_Surface*)lean_get_external_data(surface_obj);
+    return (int32_t)surface->h;
+}
+
 lean_obj_res sdl_create_texture(b_lean_obj_arg renderer_obj, uint32_t pixel_format, uint32_t texture_access, uint32_t width, uint32_t height) {
     SDL_Renderer * renderer = (SDL_Renderer *)lean_get_external_data(renderer_obj);
     SDL_Texture* texture = SDL_CreateTexture(renderer, pixel_format, (SDL_TextureAccess)texture_access, width, height);

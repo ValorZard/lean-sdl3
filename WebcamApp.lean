@@ -72,6 +72,18 @@ private def updateEngineState (engineState : IO.Ref EngineState) : IO Unit := do
   if ← isKeyDown .S then playerY := playerY + 1
   engineState.set { state with deltaTime, lastTime := currentTime, playerX, playerY }
 
+
+partial def webcamLoop (renderer: SDL.SDLRenderer) (camera: SDL.SDLCamera): IO Unit := do
+  let frame <- SDL.acquireCameraFrame camera
+
+  let w := frame.w.toUInt32
+  let h := frame.h.toUInt32
+  let texture <- SDL.createTexture renderer frame.format SDL.SDL_TEXTUREACCESS_STREAMING w h
+
+  let () <- SDL.releaseCameraFrame camera frame
+
+
+
 partial def gameLoop (engineState : IO.Ref EngineState) : IO Unit := do
   updateEngineState engineState
 
