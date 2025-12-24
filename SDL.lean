@@ -121,9 +121,8 @@ end SDLSurface
 -- @& means "by reference"
 opaque loadImage :  (path : @& System.FilePath) → SDLIO SDLSurface
 
--- TODO: add pixelformat and textureaccess params
 @[extern "sdl_create_texture"]
-opaque createTexture (renderer: @& SDLRenderer) (textureAccess: UInt32) (w: UInt32) (h: UInt32): SDLIO SDLTexture
+opaque createTexture (renderer: @& SDLRenderer) (pixelFormat: UInt32) (textureAccess: UInt32) (w: UInt32) (h: UInt32): SDLIO SDLTexture
 
 @[extern "sdl_create_texture_from_surface"]
 opaque createTextureFromSurface

@@ -278,11 +278,9 @@ uint32_t sdl_Surface_get_format(b_lean_obj_arg surface_obj) {
     return (uint32_t)surface->format;
 }
 
-lean_obj_res sdl_create_texture(b_lean_obj_arg renderer_obj, uint32_t texture_access, uint32_t width, uint32_t height) {
+lean_obj_res sdl_create_texture(b_lean_obj_arg renderer_obj, uint32_t pixel_format, uint32_t texture_access, uint32_t width, uint32_t height) {
     SDL_Renderer * renderer = (SDL_Renderer *)lean_get_external_data(renderer_obj);
-    uint32_t format;
-    // TODO: deal with int vs uint32_t issue
-    SDL_Texture* texture = SDL_CreateTexture(renderer, format, (SDL_TextureAccess)texture_access, width, height);
+    SDL_Texture* texture = SDL_CreateTexture(renderer, pixel_format, (SDL_TextureAccess)texture_access, width, height);
 
     if (!texture) {
         return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
