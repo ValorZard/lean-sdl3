@@ -5,6 +5,8 @@
 #include <SDL3_mixer/SDL_mixer.h>
 #include <lean/lean.h>
 
+#include <stdio.h>
+
 static lean_external_class * sdl_texture_external_class = NULL;
 
 // finalizer is basically the destructor for the external object
@@ -445,16 +447,52 @@ lean_obj_res sdl_open_camera(uint32_t instance_id) {
     return lean_io_result_mk_ok(external_camera);
 }
 
+void print_lean_object(lean_object* obj) {
+    printf("obj->m_rc: %d\n", obj->m_rc);
+    printf("obj->m_cs_sz: %u\n", obj->m_cs_sz);
+    printf("obj->m_other: %u\n", obj->m_other);
+    printf("obj->m_tag: %u\n", obj->m_tag);
+}
 
 lean_obj_res sdl_get_camera_format(lean_object* camera_obj) {
     SDL_Camera* camera = (SDL_Camera*)lean_get_external_data(camera_obj);
-    SDL_CameraSpec spec;
-    bool result = SDL_GetCameraFormat(camera, &spec);
+    SDL_CameraSpec* spec = (SDL_CameraSpec*) malloc(sizeof(SDL_CameraSpec));
+    bool result = SDL_GetCameraFormat(camera, spec);
     if (!result) {
         return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
     }
-    lean_object* camera_spec = lean_alloc_external(sdl_camera_spec_external_class, &spec);
+    printf("Worig: %d\n", spec->width);
+    lean_object* camera_spec = lean_alloc_external(sdl_camera_spec_external_class, spec);
+    print_lean_object(camera_spec);
     return lean_io_result_mk_ok(camera_spec);
+}
+
+uint32_t sdl_CameraSpec_get_width(lean_object* camera_spec_obj) {
+    print_lean_object(camera_spec_obj);
+    SDL_CameraSpec* camera_spec = (SDL_CameraSpec*)lean_get_external_data(camera_spec_obj);
+    uint32_t width = (uint32_t)camera_spec->width;
+    return width;
+}
+
+uint32_t sdl_CameraSpec_get_height(lean_object* camera_spec_obj) {
+    print_lean_object(camera_spec_obj);
+    SDL_CameraSpec* camera_spec = (SDL_CameraSpec*)lean_get_external_data(camera_spec_obj);
+    uint32_t height = (uint32_t)camera_spec->height;
+    return height;
+}
+
+uint32_t sdl_CameraSpec_get_framerate_numerator(lean_object* camera_spec_obj) {
+    print_lean_object(camera_spec_obj);
+    SDL_CameraSpec* camera_spec = (SDL_CameraSpec*)lean_get_external_data(camera_spec_obj);
+    uint32_t framerate_numerator = (uint32_t)camera_spec->framerate_numerator;
+    return framerate_numerator;
+}
+
+uint32_t sdl_CameraSpec_get_framerate_denominator(lean_object* camera_spec_obj) {
+    print_lean_object(camera_spec_obj);
+    SDL_CameraSpec* camera_spec = (SDL_CameraSpec*)lean_get_external_data(camera_spec_obj);
+    uint32_t framerate_denominator = (uint32_t)camera_spec->framerate_denominator;
+    return framerate_denominator;
 }
 
 

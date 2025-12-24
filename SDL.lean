@@ -204,17 +204,26 @@ private opaque Colorspace.nonemptyType : NonemptyType
 def Colorspace : Type := Colorspace.nonemptyType.type
 instance Colorspace.instNonempty : Nonempty Colorspace := Colorspace.nonemptyType.property
 
-structure CameraSpec.Model where
-  format : PixelFormat
-  colorspace : Colorspace
-  width : Int32
-  height : Int32
-  framerateNumerator : Int32
-  framerateDenominator : Int32
-
-private opaque CameraSpec.nonemptyType : NonemptyType
+opaque CameraSpec.nonemptyType : NonemptyType
 def CameraSpec : Type := CameraSpec.nonemptyType.type
 instance CameraSpec.instNonempty : Nonempty CameraSpec := CameraSpec.nonemptyType.property
+
+namespace CameraSpec
+
+@[extern "sdl_CameraSpec_get_width"]
+opaque width : @& CameraSpec -> UInt32
+
+@[extern "sdl_CameraSpec_get_height"]
+opaque height : @& CameraSpec -> UInt32
+
+@[extern "sdl_CameraSpec_get_framerate_numerator"]
+opaque framerateNumerator : @& CameraSpec -> UInt32
+
+@[extern "sdl_CameraSpec_get_framerate_denominator"]
+opaque framerateDenominator : @& CameraSpec -> UInt32
+
+end CameraSpec
+
 
 @[extern "sdl_get_camera_format"]
 opaque getCameraFormat : @& SDLCamera -> SDLIO CameraSpec

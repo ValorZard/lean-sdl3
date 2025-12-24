@@ -173,6 +173,14 @@ partial def run : IO Unit := do
 
   let spec <- SDL.getCameraFormat camera
 
+  let msg :=
+    let width := spec.width
+    let height := spec.height
+    let n := spec.framerateNumerator
+    let d := spec.framerateDenominator
+    s!"Framerate: {n}/{d} FPS width: {width}, height: {height}"
+  IO.println msg
+
   let initialState : EngineState := {
     window := window, renderer := renderer
     deltaTime := 0.0, lastTime := 0, running := true
