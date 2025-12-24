@@ -230,5 +230,8 @@ opaque getCameraFormat : @& SDLCamera -> SDLIO CameraSpec
 
 @[extern "sdl_acquire_camera_frame"]
 opaque acquireCameraFrame :  (camera : @& SDLCamera) → SDLIO SDLSurface
+-- TODO: support returning the timestampNS too
+/- @[extern "sdl_acquire_camera_frame"] -/
+/- opaque acquireCameraFrame :  (camera : @& SDLCamera) → SDLIO (SDLSurface × UInt64) -/
 
 end SDL
