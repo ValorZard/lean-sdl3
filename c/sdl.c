@@ -111,6 +111,15 @@ static void sdl_camera_spec_foreach(void * val, lean_obj_arg fn) {
 static void sdl_camera_spec_finalizer(void * h) {
 }
 
+static lean_external_class * sdl_camera_frame_external_class = NULL;
+static void sdl_camera_frame_foreach(void * val, lean_obj_arg fn) {
+
+}
+// Camera frames must be explicitly released via SDL_ReleaseCameraFrame, not destroyed
+static void sdl_camera_frame_finalizer(void * h) {
+    // No-op - if we get here without release, frame is leaked to the camera system
+}
+
 lean_obj_res sdl_init(uint32_t flags, lean_obj_arg w) {
     int32_t result = SDL_Init(flags);
 
@@ -121,6 +130,7 @@ lean_obj_res sdl_init(uint32_t flags, lean_obj_arg w) {
     sdl_surface_external_class = lean_register_external_class(sdl_surface_finalizer, sdl_surface_foreach);
     sdl_camera_external_class = lean_register_external_class(sdl_camera_finalizer, sdl_camera_foreach);
     sdl_camera_spec_external_class = lean_register_external_class(sdl_camera_spec_finalizer, sdl_camera_spec_foreach);
+    sdl_camera_frame_external_class = lean_register_external_class(sdl_camera_frame_finalizer, sdl_camera_frame_foreach);
 
     return lean_io_result_mk_ok(lean_box_uint32(result));
 }
@@ -515,7 +525,7 @@ lean_obj_res sdl_acquire_camera_frame(b_lean_obj_arg camera_obj) {
     if (!frame) {
         return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
     }
-    lean_object* external_surface = lean_alloc_external(sdl_surface_external_class, frame);
+    lean_object* external_surface = lean_alloc_external(sdl_camera_frame_external_class, frame);
     return lean_io_result_mk_ok(external_surface);
 }
 
@@ -523,8 +533,12 @@ lean_obj_res sdl_release_camera_frame(b_lean_obj_arg camera_obj, lean_obj_arg fr
     SDL_Camera* camera = (SDL_Camera*)lean_get_external_data(camera_obj);
     SDL_Surface* frame = (SDL_Surface*)lean_get_external_data(frame_obj);
 
-    //TODO release?
     SDL_ReleaseCameraFrame(camera, frame);
+
+    // frame_obj is lean_obj_arg (ownership transferred), so we must release it
+    // The finalizer is a no-op, so this is safe after SDL_ReleaseCameraFrame
+    lean_dec(frame_obj);
+
     return lean_io_result_mk_ok(lean_box(0));
 }
 
