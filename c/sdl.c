@@ -506,6 +506,15 @@ lean_obj_res sdl_acquire_camera_frame(lean_obj_arg camera_obj) {
     return lean_io_result_mk_ok(external_surface);
 }
 
+lean_obj_res sdl_release_camera_frame(lean_obj_arg camera_obj, lean_obj_arg frame_obj) {
+    SDL_Camera* camera = (SDL_Camera*)lean_get_external_data(camera_obj);
+    SDL_Surface* frame = (SDL_Surface*)lean_get_external_data(frame_obj);
+
+    //TODO release?
+    SDL_ReleaseCameraFrame(camera, frame);
+    return lean_io_result_mk_ok(lean_box(0));
+}
+
 
 // Mouse support (caching avoids redundant SDL calls within the same frame)
 static struct {

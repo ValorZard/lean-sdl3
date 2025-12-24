@@ -234,4 +234,7 @@ opaque acquireCameraFrame :  (camera : @& SDLCamera) → SDLIO SDLSurface
 /- @[extern "sdl_acquire_camera_frame"] -/
 /- opaque acquireCameraFrame :  (camera : @& SDLCamera) → SDLIO (SDLSurface × UInt64) -/
 
+@[extern "sdl_release_camera_frame"]
+opaque releaseCameraFrame (camera : @& SDLCamera) (frame: @&SDLSurface): IO Unit
+
 end SDL
