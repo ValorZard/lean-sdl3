@@ -38,7 +38,7 @@ def setColor (renderer : SDL.SDLRenderer) (color : Color) : IO Unit :=
   SDL.setRenderDrawColor renderer color.r color.g color.b color.a *> pure ()
 
 def fillRect (renderer : SDL.SDLRenderer) (x y w h : Int32) : IO Unit :=
-  SDL.renderFillRect renderer x y w h *> pure ()
+  SDL.renderFillRect renderer { x, y, w, h } *> pure ()
 
 def renderScene (state : EngineState) : IO Unit := do
   setColor state.renderer { r := 0, g := 0, b := 235 }

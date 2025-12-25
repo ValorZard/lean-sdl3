@@ -44,6 +44,13 @@ def SDL_TEXTUREACCESS_STATIC : UInt32 := 0x0
 def SDL_TEXTUREACCESS_STREAMING : UInt32 := 0x1
 def SDL_TEXTUREACCESS_TARGET :UInt32 := 0x2
 
+structure SDLRect where
+  x : Int32
+  y : Int32
+  w : Int32
+  h : Int32
+  deriving Repr
+
 @[extern "sdl_init"]
 opaque init : UInt32 → IO UInt32
 
@@ -83,7 +90,7 @@ opaque renderClear : @& SDLRenderer → SDLIO Int32
 opaque renderPresent : @& SDLRenderer → IO Unit
 
 @[extern "sdl_render_fill_rect"]
-opaque renderFillRect : @& SDLRenderer → Int32 → Int32 → Int32 → Int32 → SDLIO Int32
+opaque renderFillRect : @& SDLRenderer → @& SDLRect → SDLIO Int32
 
 @[extern "sdl_delay"]
 opaque delay : UInt32 → IO Unit

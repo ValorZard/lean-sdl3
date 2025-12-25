@@ -231,9 +231,15 @@ lean_obj_res sdl_render_present(lean_object * g_renderer, lean_obj_arg w) {
     return lean_io_result_mk_ok(lean_box(0));
 }
 
-lean_obj_res sdl_render_fill_rect(lean_object * g_renderer, uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
+lean_obj_res sdl_render_fill_rect(lean_object * g_renderer, b_lean_obj_arg rect_obj) {
     SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(g_renderer);
     if (renderer == NULL) return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string("C: Renderer is NULL")));
+
+    int32_t x = (int32_t)lean_ctor_get_uint32(rect_obj, 0);
+    int32_t y = (int32_t)lean_ctor_get_uint32(rect_obj, 4);
+    int32_t w = (int32_t)lean_ctor_get_uint32(rect_obj, 8);
+    int32_t h = (int32_t)lean_ctor_get_uint32(rect_obj, 12);
+
     SDL_FRect rect = {(float)x, (float)y, (float)w, (float)h};
     int32_t result = SDL_RenderFillRect(renderer, &rect);
     return lean_io_result_mk_ok(lean_box_uint32(result));
