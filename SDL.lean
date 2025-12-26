@@ -44,6 +44,9 @@ def SDL_TEXTUREACCESS_STATIC : UInt32 := 0x0
 def SDL_TEXTUREACCESS_STREAMING : UInt32 := 0x1
 def SDL_TEXTUREACCESS_TARGET :UInt32 := 0x2
 
+
+def SDL_ALPHA_OPAQUE_FLOAT: Float := 1.0
+
 structure SDLRect where
   x : Int32
   y : Int32
@@ -82,6 +85,9 @@ opaque createWindowAndRenderer : String -> Int32 -> Int32 -> UInt32 -> SDLIO (SD
 
 @[extern "sdl_set_render_draw_color"]
 opaque setRenderDrawColor : @& SDLRenderer → UInt8 → UInt8 → UInt8 → UInt8 → SDLIO Int32
+
+@[extern "sdl_set_render_draw_color_float"]
+opaque setRenderDrawColorFloat : @& SDLRenderer → Float → Float → Float → Float → SDLIO Bool
 
 @[extern "sdl_render_clear"]
 opaque renderClear : @& SDLRenderer → SDLIO Int32
@@ -173,8 +179,12 @@ opaque loadFont : System.FilePath → UInt32 → SDLIO SDLFont
 @[extern "sdl_render_entire_texture"]
 opaque renderEntireTexture (renderer : @& SDLRenderer) (texture : @& SDLTexture) (x : Int64) (y : Int64) (w : Int64) (h : Int64) : SDLIO Int32
 
+-- TODO renderTexture should work in terms of rects, replace this with renderTextureRect
 @[extern "sdl_render_texture"]
 opaque renderTexture (renderer : @& SDLRenderer) (texture : @& SDLTexture) (srcX : Int64) (srcY : Int64) (srcW : Int64) (srcH : Int64) (dstX : Int64) (dstY : Int64) (dstW : Int64) (dstH : Int64) : SDLIO Int32
+
+@[extern "sdl_render_texture_rect"]
+opaque renderTextureRect (renderer : @& SDLRenderer) (texture : @& SDLTexture) (sourceRect : SDLRect) (destRect : SDLRect): SDLIO Bool
 
 @[extern "sdl_get_texture_width"]
 opaque getTextureWidth (texture : @& SDLTexture) : SDLIO Int64

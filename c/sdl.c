@@ -219,11 +219,18 @@ lean_obj_res sdl_create_window_and_renderer(lean_obj_arg title, uint32_t w, uint
     return lean_io_result_mk_ok(pair);
 }
 
-lean_obj_res sdl_set_render_draw_color(lean_object * g_renderer, uint8_t r, uint8_t g, uint8_t b, uint8_t a, lean_obj_arg w) {
+lean_obj_res sdl_set_render_draw_color(lean_object * g_renderer, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
     SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(g_renderer);
     if (renderer == NULL) return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string("C: Renderer is NULL")));
     int32_t result = SDL_SetRenderDrawColor(renderer, r, g, b, a);
     return lean_io_result_mk_ok(lean_box_uint32(result));
+}
+
+lean_obj_res sdl_set_render_draw_color_float(b_lean_obj_arg renderer_obj, float r, float g, float b, float a) {
+    SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(renderer_obj);
+    if (renderer == NULL) return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string("C: Renderer is NULL")));
+    bool result = SDL_SetRenderDrawColorFloat(renderer, r, g, b, a);
+    return lean_io_result_mk_ok(lean_box(result));
 }
 
 lean_obj_res sdl_render_clear(lean_object * g_renderer, lean_obj_arg w) {
@@ -462,6 +469,23 @@ lean_obj_res sdl_render_texture(lean_object* g_renderer, lean_object * g_texture
     SDL_FRect dst_rect = { (float)dst_x, (float)dst_y, (float)dst_width, (float)dst_height };
 
     return lean_io_result_mk_ok(lean_box_uint32(SDL_RenderTexture(renderer, texture, &src_rect, &dst_rect)));
+}
+
+lean_obj_res sdl_render_texture_rect(b_lean_obj_arg renderer_obj, b_lean_obj_arg texture_obj, b_lean_obj_arg src, b_lean_obj_arg dst) {
+    if (!renderer_obj || texture_obj) {
+        return lean_io_result_mk_ok(lean_box(false));
+    }
+
+    SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(renderer_obj);
+    SDL_Texture* texture = (SDL_Texture*)lean_get_external_data(texture_obj);
+    //TODO implement correctly
+    SDL_FRect src_rect = { 0.0, 0.0, 0.0, 0.0 };
+    SDL_FRect dst_rect = { 0.0, 0.0, 0.0, 0.0 };
+
+    // SDL_FRect src_rect = { (float)src_x, (float)src_y, (float)src_width, (float)src_height };
+    // SDL_FRect dst_rect = { (float)dst_x, (float)dst_y, (float)dst_width, (float)dst_height };
+
+    return lean_io_result_mk_ok(lean_box(SDL_RenderTexture(renderer, texture, &src_rect, &dst_rect)));
 }
 
 lean_obj_res sdl_render_entire_texture(lean_object* g_renderer, lean_object * g_texture, int64_t dst_x, int64_t dst_y, int64_t dst_width, int64_t dst_height, lean_obj_arg w) {

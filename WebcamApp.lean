@@ -90,9 +90,21 @@ partial def webcamLoop
     | some tx =>
       let pixels := cameraFrame.pixels
       let pitch := cameraFrame.pitch
-      let result := SDL.updateTexture tx pixels pitch
+      let _result := SDL.updateTexture tx pixels pitch
 
     let () <- SDL.releaseCameraFrame camera cameraFrame
+
+    let _result := SDL.setRenderDrawColorFloat renderer 0.4 0.6 1.0 SDL.SDL_ALPHA_OPAQUE_FLOAT
+
+    let _ ← SDL.renderClear renderer
+    let texture <- textureRef.get
+    match texture with
+    | none =>
+      IO.println "Error - No texture"
+    | some tx =>
+      IO.println "Error - TODO"
+      --let _ <- SDL.renderTexture renderer tx
+
 
 partial def webcamSetup
   (renderer: SDL.SDLRenderer)
