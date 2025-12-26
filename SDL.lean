@@ -119,6 +119,10 @@ instance SDLSurface.instNonempty : Nonempty SDLSurface := SDLSurface.nonemptyTyp
 
 namespace SDLSurface
 
+private opaque Pixels.nonemptyType : NonemptyType
+def Pixels: Type := Pixels.nonemptyType.type
+instance PIxels.instNonempty : Nonempty Pixels := Pixels.nonemptyType.property
+
 @[extern "sdl_Surface_get_format"]
 opaque format : @& SDLSurface -> UInt32
 
@@ -127,6 +131,12 @@ opaque w : @& SDLSurface -> Int32
 
 @[extern "sdl_Surface_get_h"]
 opaque h : @& SDLSurface -> Int32
+
+@[extern "sdl_Surface_get_pixels"]
+opaque pixels : @& SDLSurface -> Pixels
+
+@[extern "sdl_Surface_get_pitch"]
+opaque pitch : @& SDLSurface -> Int32
 
 end SDLSurface
 
@@ -140,6 +150,12 @@ opaque createTexture (renderer: @& SDLRenderer) (pixelFormat: UInt32) (textureAc
 @[extern "sdl_create_texture_from_surface"]
 opaque createTextureFromSurface
   (renderer : @& SDLRenderer) (surface : @& SDLSurface) : SDLIO SDLTexture
+
+
+-- TODO handle SDLRect argument
+@[extern "sdl_update_texture"]
+opaque updateTexture (texture: @& SDLTexture) (pixels: @& SDLSurface.Pixels) (pitch: Int32): SDLIO Bool
+
 
 def loadImageTexture
   (renderer : SDLRenderer) (path : System.FilePath)

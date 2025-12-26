@@ -98,6 +98,14 @@ static void sdl_mixer_audio_finalizer(void * h) {
 static void sdl_mixer_audio_foreach(void * val, lean_obj_arg fn) {
 
 }
+
+static lean_external_class* sdl_pixels_external_class = NULL;
+static void sdl_pixels_foreach(void* vald, lean_obj_arg fn) {
+}
+static void sdl_pixels_finalizer(void*h) {
+}
+
+
 static lean_external_class * sdl_camera_external_class = NULL;
 static void sdl_camera_foreach(void * val, lean_obj_arg fn) {
 
@@ -131,6 +139,7 @@ lean_obj_res sdl_init(uint32_t flags, lean_obj_arg w) {
     sdl_camera_external_class = lean_register_external_class(sdl_camera_finalizer, sdl_camera_foreach);
     sdl_camera_spec_external_class = lean_register_external_class(sdl_camera_spec_finalizer, sdl_camera_spec_foreach);
     sdl_camera_frame_external_class = lean_register_external_class(sdl_camera_frame_finalizer, sdl_camera_frame_foreach);
+    sdl_pixels_external_class = lean_register_external_class(sdl_pixels_finalizer, sdl_pixels_foreach);
 
     return lean_io_result_mk_ok(lean_box_uint32(result));
 }
@@ -294,6 +303,18 @@ int32_t sdl_Surface_get_h(b_lean_obj_arg surface_obj) {
     return (int32_t)surface->h;
 }
 
+lean_obj_res sdl_Surface_get_pixels(b_lean_obj_arg surface_obj) {
+    SDL_Surface* surface = (SDL_Surface*)lean_get_external_data(surface_obj);
+    void* pixels = surface->pixels;
+    lean_object* external_pixels = lean_alloc_external(sdl_pixels_external_class, pixels);
+    return lean_io_result_mk_ok(external_pixels);
+}
+
+int32_t sdl_Surface_get_pitch(b_lean_obj_arg surface_obj) {
+    SDL_Surface* surface = (SDL_Surface*)lean_get_external_data(surface_obj);
+    return (int32_t)surface->pitch;
+}
+
 lean_obj_res sdl_create_texture(b_lean_obj_arg renderer_obj, uint32_t pixel_format, uint32_t texture_access, uint32_t width, uint32_t height) {
     SDL_Renderer * renderer = (SDL_Renderer *)lean_get_external_data(renderer_obj);
     SDL_Texture* texture = SDL_CreateTexture(renderer, pixel_format, (SDL_TextureAccess)texture_access, width, height);
@@ -321,6 +342,14 @@ lean_obj_res sdl_create_texture_from_surface(b_lean_obj_arg g_renderer, lean_obj
     lean_object* external_texture = lean_alloc_external(sdl_texture_external_class, g_texture);
 
     return lean_io_result_mk_ok(external_texture);
+}
+
+lean_obj_res sdl_update_texture(b_lean_obj_arg texture_obj, b_lean_obj_arg pixels_obj, int32_t pitch) {
+    SDL_Texture * texture = (SDL_Texture *)lean_get_external_data(texture_obj);
+    SDL_Surface * pixels = (SDL_Surface *)lean_get_external_data(pixels_obj);
+
+    bool result = SDL_UpdateTexture(texture, NULL, pixels, pitch);
+    return lean_io_result_mk_ok(lean_box(result));
 }
 
 lean_obj_res sdl_load_font(lean_obj_arg fontname, uint32_t font_size, lean_obj_arg w) {

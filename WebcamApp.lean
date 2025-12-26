@@ -86,9 +86,11 @@ partial def webcamLoop
     match texture with
     | none => 
       let cameraTexture <- SDL.createTexture renderer cameraFrame.format SDL.SDL_TEXTUREACCESS_STREAMING w h
+      textureRef.set (some cameraTexture)
     | some tx =>
-      -- TODO update texture
-
+      let pixels := cameraFrame.pixels
+      let pitch := cameraFrame.pitch
+      let result := SDL.updateTexture tx pixels pitch
 
     let () <- SDL.releaseCameraFrame camera cameraFrame
 
