@@ -73,16 +73,31 @@ private def updateEngineState (engineState : IO.Ref EngineState) : IO Unit := do
   engineState.set { state with deltaTime, lastTime := currentTime, playerX, playerY }
 
 
-partial def webcamLoop (renderer: SDL.SDLRenderer) (camera: SDL.SDLCamera): IO Unit := do
-  let frame <- SDL.acquireCameraFrame camera
+partial def webcamLoop
+  (renderer: SDL.SDLRenderer)
+  (camera: SDL.SDLCamera)
+  (textureRef: IO.Ref $ Option SDL.SDLTexture): IO Unit := do
 
-  let w := frame.w.toUInt32
-  let h := frame.h.toUInt32
-  let texture <- SDL.createTexture renderer frame.format SDL.SDL_TEXTUREACCESS_STREAMING w h
+    let texture <- textureRef.get
+    let cameraFrame <- SDL.acquireCameraFrame camera
+    let w := cameraFrame.w.toUInt32
+    let h := cameraFrame.h.toUInt32
 
-  let () <- SDL.releaseCameraFrame camera frame
+    match texture with
+    | none => 
+      let cameraTexture <- SDL.createTexture renderer cameraFrame.format SDL.SDL_TEXTUREACCESS_STREAMING w h
+    | some tx =>
+      -- TODO update texture
 
 
+    let () <- SDL.releaseCameraFrame camera cameraFrame
+
+partial def webcamSetup
+  (renderer: SDL.SDLRenderer)
+  (camera: SDL.SDLCamera): IO Unit := do
+  let textureRef: IO.Ref (Option SDL.SDLTexture) <- IO.mkRef none
+
+  webcamLoop renderer camera textureRef
 
 partial def gameLoop (engineState : IO.Ref EngineState) : IO Unit := do
   updateEngineState engineState
