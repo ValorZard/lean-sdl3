@@ -73,45 +73,65 @@ private def updateEngineState (engineState : IO.Ref EngineState) : IO Unit := do
   engineState.set { state with deltaTime, lastTime := currentTime, playerX, playerY }
 
 
-partial def webcamLoop
-  (renderer: SDL.SDLRenderer)
-  (camera: SDL.SDLCamera)
-  (textureRef: IO.Ref $ Option SDL.SDLTexture): IO Unit := do
+structure WebcamState where
+  window : SDL.SDLWindow
+  renderer : SDL.SDLRenderer
+  camera : SDL.SDLCamera
+  texture : Option SDL.SDLTexture
+  running : Bool
 
-    let texture <- textureRef.get
-    let cameraFrame <- SDL.acquireCameraFrame camera
-    let w := cameraFrame.w.toUInt32
-    let h := cameraFrame.h.toUInt32
+partial def webcamLoop (stateRef: IO.Ref WebcamState): IO Unit := do
+    let state ← stateRef.get
 
-    match texture with
-    | none => 
-      let cameraTexture <- SDL.createTexture renderer cameraFrame.format SDL.SDL_TEXTUREACCESS_STREAMING w h
-      textureRef.set (some cameraTexture)
-    | some tx =>
-      let pixels := cameraFrame.pixels
-      let pitch := cameraFrame.pitch
-      let _result := SDL.updateTexture tx pixels pitch
+    -- Check for quit event
+    let eventType ← SDL.pollEvent
+    if eventType == SDL.SDL_QUIT || (← isKeyDown .Escape) then
+      stateRef.modify fun s => { s with running := false }
+      return
 
-    let () <- SDL.releaseCameraFrame camera cameraFrame
+    -- Try to acquire a camera frame (may return none if no frame ready)
+    let maybeFrame ← SDL.acquireCameraFrame state.camera
 
-    let _result := SDL.setRenderDrawColorFloat renderer 0.4 0.6 1.0 SDL.SDL_ALPHA_OPAQUE_FLOAT
-
-    let _ ← SDL.renderClear renderer
-    let texture <- textureRef.get
-    match texture with
+    match maybeFrame with
     | none =>
-      IO.println "Error - No texture"
+      -- No frame available yet, just continue
+      pure ()
+    | some cameraFrame =>
+      let w := cameraFrame.w.toUInt32
+      let h := cameraFrame.h.toUInt32
+
+      match state.texture with
+      | none =>
+        -- First frame: create the texture
+        let cameraTexture ← SDL.createTexture state.renderer cameraFrame.format SDL.SDL_TEXTUREACCESS_STREAMING w h
+        stateRef.modify fun s => { s with texture := some cameraTexture }
+      | some tx =>
+        -- Subsequent frames: update the texture
+        let pixels := cameraFrame.pixels
+        let pitch := cameraFrame.pitch
+        let _ ← SDL.updateTexture tx pixels pitch
+
+      SDL.releaseCameraFrame state.camera cameraFrame
+
+    -- Clear the renderer
+    let _ ← SDL.setRenderDrawColorFloat state.renderer 0.4 0.6 1.0 SDL.SDL_ALPHA_OPAQUE_FLOAT
+    let _ ← SDL.renderClear state.renderer
+
+    -- Render the texture if we have one
+    let state ← stateRef.get
+    match state.texture with
+    | none => pure ()
     | some tx =>
-      IO.println "Error - TODO"
-      --let _ <- SDL.renderTexture renderer tx
+      let _ ← SDL.renderTextureFullscreen state.renderer tx
+      pure ()
 
+    -- Present the frame
+    SDL.renderPresent state.renderer
 
-partial def webcamSetup
-  (renderer: SDL.SDLRenderer)
-  (camera: SDL.SDLCamera): IO Unit := do
-  let textureRef: IO.Ref (Option SDL.SDLTexture) <- IO.mkRef none
-
-  webcamLoop renderer camera textureRef
+    -- Continue the loop if still running
+    let state ← stateRef.get
+    if state.running then
+      webcamLoop stateRef
 
 partial def gameLoop (engineState : IO.Ref EngineState) : IO Unit := do
   updateEngineState engineState
@@ -147,72 +167,18 @@ partial def run : IO Unit := do
     SDL.quit
     return
 
-  let texture ← try
-    SDL.loadImageTexture renderer "assets/wall.png"
-  catch sdlError =>
-    IO.println sdlError
-    SDL.quit
-    return
-
-  unless (← SDL.ttfInit) do
-    IO.println "Failed to initialize SDL_ttf"
-    SDL.quit
-    return
-
-  let font ← try
-    SDL.loadFont "assets/Inter-VariableFont.ttf" 24
-  catch sdlError =>
-    IO.println sdlError
-    SDL.quit
-    return
-
-  unless (← SDL.mixerInit) do
-    IO.println "Failed to initialize SDL_mixer"
-    SDL.quit
-    return
-
-  let mixer ← try
-    SDL.createMixer ()
-  catch sdlError =>
-    IO.println sdlError
-    SDL.quit
-    return
-
-  let track ← try
-    SDL.createTrack mixer
-  catch sdlError =>
-    IO.println sdlError
-    SDL.quit
-    return
-
-  let audio ← try
-    SDL.loadAudio mixer "assets/In_The_Dark_Flashes.mp3"
-  catch sdlError =>
-    IO.println sdlError
-    SDL.quit
-    return
-
-  match (← SDL.setTrackAudio track audio) with
-  | true => pure ()
-  | false =>
-    IO.println s!"Failed to set track audio"
-    SDL.quit
-    return
-
-  /- match (← SDL.playTrack track) with -/
-  /- | true => pure () -/
-  /- | false => -/
-  /-   IO.println s!"Failed to play track" -/
-  /-   SDL.quit -/
-  /-   return -/
-
-  let cameraCount <- SDL.getCameras
+  let cameraCount ← SDL.getCameras
   IO.println s!"Camera count: {cameraCount}"
 
-  let idx := cameraCount[0]!
-  let camera <- SDL.openCamera idx
+  if cameraCount.isEmpty then
+    IO.println "No cameras found!"
+    SDL.quit
+    return
 
-  let spec <- SDL.getCameraFormat camera
+  let idx := cameraCount[0]!
+  let camera ← SDL.openCamera idx
+
+  let spec ← SDL.getCameraFormat camera
 
   let msg :=
     let width := spec.width
@@ -222,20 +188,18 @@ partial def run : IO Unit := do
     s!"Framerate: {n}/{d} FPS width: {width}, height: {height}"
   IO.println msg
 
-  let initialState : EngineState := {
-    window := window, renderer := renderer
-    deltaTime := 0.0, lastTime := 0, running := true
-    playerX := (SCREEN_WIDTH / 2), playerY := (SCREEN_HEIGHT / 2)
-    texture := texture, mixer := mixer, track := track, audio := audio, font := font
+  let initialState : WebcamState := {
+    window := window
+    renderer := renderer
+    camera := camera
+    texture := none
+    running := true
   }
 
-  let engineState ← IO.mkRef initialState
-  IO.println "Starting game loop..."
-  gameLoop engineState
+  let stateRef ← IO.mkRef initialState
+  IO.println "Starting webcam loop..."
+  webcamLoop stateRef
   SDL.quit
-
-def EngineState.setRunning (state : EngineState) (running : Bool) : EngineState :=
-  { state with running }
 
 def main : IO Unit :=
   run

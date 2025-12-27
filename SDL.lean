@@ -193,6 +193,9 @@ opaque renderTexture (renderer : @& SDLRenderer) (texture : @& SDLTexture) (srcX
 @[extern "sdl_render_texture_rect"]
 opaque renderTextureRect (renderer : @& SDLRenderer) (texture : @& SDLTexture) (sourceRect : SDLFRect) (destRect : SDLFRect): SDLIO Bool
 
+@[extern "sdl_render_texture_fullscreen"]
+opaque renderTextureFullscreen (renderer : @& SDLRenderer) (texture : @& SDLTexture) : SDLIO Bool
+
 @[extern "sdl_get_texture_width"]
 opaque getTextureWidth (texture : @& SDLTexture) : SDLIO Int64
 
@@ -293,10 +296,8 @@ end CameraSpec
 opaque getCameraFormat : @& SDLCamera -> SDLIO CameraSpec
 
 @[extern "sdl_acquire_camera_frame"]
-opaque acquireCameraFrame :  (camera : @& SDLCamera) → SDLIO SDLSurface
+opaque acquireCameraFrame :  (camera : @& SDLCamera) → IO (Option SDLSurface)
 -- TODO: support returning the timestampNS too
-/- @[extern "sdl_acquire_camera_frame"] -/
-/- opaque acquireCameraFrame :  (camera : @& SDLCamera) → SDLIO (SDLSurface × UInt64) -/
 
 @[extern "sdl_release_camera_frame"]
 opaque releaseCameraFrame (camera : @& SDLCamera) (frame: SDLSurface): IO Unit
