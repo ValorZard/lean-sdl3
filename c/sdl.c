@@ -471,19 +471,25 @@ lean_obj_res sdl_render_texture(lean_object* g_renderer, lean_object * g_texture
     return lean_io_result_mk_ok(lean_box_uint32(SDL_RenderTexture(renderer, texture, &src_rect, &dst_rect)));
 }
 
-lean_obj_res sdl_render_texture_rect(b_lean_obj_arg renderer_obj, b_lean_obj_arg texture_obj, b_lean_obj_arg src, b_lean_obj_arg dst) {
+lean_obj_res sdl_render_texture_rect(b_lean_obj_arg renderer_obj, b_lean_obj_arg texture_obj, lean_obj_arg src, lean_obj_arg dst) {
     if (!renderer_obj || texture_obj) {
         return lean_io_result_mk_ok(lean_box(false));
     }
 
     SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(renderer_obj);
     SDL_Texture* texture = (SDL_Texture*)lean_get_external_data(texture_obj);
-    //TODO implement correctly
-    SDL_FRect src_rect = { 0.0, 0.0, 0.0, 0.0 };
-    SDL_FRect dst_rect = { 0.0, 0.0, 0.0, 0.0 };
 
-    // SDL_FRect src_rect = { (float)src_x, (float)src_y, (float)src_width, (float)src_height };
-    // SDL_FRect dst_rect = { (float)dst_x, (float)dst_y, (float)dst_width, (float)dst_height };
+    float sx = lean_ctor_get_float(src, 0);
+    float sy = lean_ctor_get_float(src, 4);
+    float sw = lean_ctor_get_float(src, 8);
+    float sh = lean_ctor_get_float(src, 12);
+    SDL_FRect src_rect = { x: sx, y: sy, w: sw, h: sh };
+
+    float dx = lean_ctor_get_float(dst, 0);
+    float dy = lean_ctor_get_float(dst, 4);
+    float dw = lean_ctor_get_float(dst, 8);
+    float dh = lean_ctor_get_float(dst, 12);
+    SDL_FRect dst_rect = { x: dx, y: dy, w: dw, h: dh };
 
     return lean_io_result_mk_ok(lean_box(SDL_RenderTexture(renderer, texture, &src_rect, &dst_rect)));
 }

@@ -54,6 +54,13 @@ structure SDLRect where
   h : Int32
   deriving Repr
 
+structure SDLFRect where
+  x : Float
+  y : Float
+  w : Float
+  h : Float
+  deriving Repr
+
 @[extern "sdl_init"]
 opaque init : UInt32 → IO UInt32
 
@@ -184,7 +191,7 @@ opaque renderEntireTexture (renderer : @& SDLRenderer) (texture : @& SDLTexture)
 opaque renderTexture (renderer : @& SDLRenderer) (texture : @& SDLTexture) (srcX : Int64) (srcY : Int64) (srcW : Int64) (srcH : Int64) (dstX : Int64) (dstY : Int64) (dstW : Int64) (dstH : Int64) : SDLIO Int32
 
 @[extern "sdl_render_texture_rect"]
-opaque renderTextureRect (renderer : @& SDLRenderer) (texture : @& SDLTexture) (sourceRect : SDLRect) (destRect : SDLRect): SDLIO Bool
+opaque renderTextureRect (renderer : @& SDLRenderer) (texture : @& SDLTexture) (sourceRect : SDLFRect) (destRect : SDLFRect): SDLIO Bool
 
 @[extern "sdl_get_texture_width"]
 opaque getTextureWidth (texture : @& SDLTexture) : SDLIO Int64
