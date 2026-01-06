@@ -1,5 +1,11 @@
 # Lean SDL3 Bindings
 
+## Note
+This repository is still maintained, but I've moved onto other projects. 
+However, someone else in the Lean community has been carrying on with their own fork of this repo: 
+https://code.everydayimshuflin.com/greg/lean-sdl3
+If you'd like to learn more, check out the Zulip thread here: https://leanprover.zulipchat.com/#narrow/channel/113488-general/topic/Fun.20with.20SDL3/
+
 How to use:
 Add this library as a dependency in your lakefile.lean (Not .toml)
 
