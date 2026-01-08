@@ -5,6 +5,8 @@
 #include <SDL3_mixer/SDL_mixer.h>
 #include <lean/lean.h>
 
+#include <stdio.h>
+
 static lean_external_class * sdl_texture_external_class = NULL;
 
 // finalizer is basically the destructor for the external object
@@ -97,6 +99,35 @@ static void sdl_mixer_audio_foreach(void * val, lean_obj_arg fn) {
 
 }
 
+static lean_external_class* sdl_pixels_external_class = NULL;
+static void sdl_pixels_foreach(void* vald, lean_obj_arg fn) {
+}
+static void sdl_pixels_finalizer(void*h) {
+}
+
+
+static lean_external_class * sdl_camera_external_class = NULL;
+static void sdl_camera_foreach(void * val, lean_obj_arg fn) {
+
+}
+static void sdl_camera_finalizer(void * h) {
+}
+static lean_external_class * sdl_camera_spec_external_class = NULL;
+static void sdl_camera_spec_foreach(void * val, lean_obj_arg fn) {
+
+}
+static void sdl_camera_spec_finalizer(void * h) {
+}
+
+static lean_external_class * sdl_camera_frame_external_class = NULL;
+static void sdl_camera_frame_foreach(void * val, lean_obj_arg fn) {
+
+}
+// Camera frames must be explicitly released via SDL_ReleaseCameraFrame, not destroyed
+static void sdl_camera_frame_finalizer(void * h) {
+    // No-op - if we get here without release, frame is leaked to the camera system
+}
+
 lean_obj_res sdl_init(uint32_t flags, lean_obj_arg w) {
     int32_t result = SDL_Init(flags);
 
@@ -105,6 +136,10 @@ lean_obj_res sdl_init(uint32_t flags, lean_obj_arg w) {
     sdl_window_external_class = lean_register_external_class(sdl_window_finalizer, sdl_window_foreach);
     sdl_renderer_external_class = lean_register_external_class(sdl_renderer_finalizer, sdl_renderer_foreach);
     sdl_surface_external_class = lean_register_external_class(sdl_surface_finalizer, sdl_surface_foreach);
+    sdl_camera_external_class = lean_register_external_class(sdl_camera_finalizer, sdl_camera_foreach);
+    sdl_camera_spec_external_class = lean_register_external_class(sdl_camera_spec_finalizer, sdl_camera_spec_foreach);
+    sdl_camera_frame_external_class = lean_register_external_class(sdl_camera_frame_finalizer, sdl_camera_frame_foreach);
+    sdl_pixels_external_class = lean_register_external_class(sdl_pixels_finalizer, sdl_pixels_foreach);
 
     return lean_io_result_mk_ok(lean_box_uint32(result));
 }
@@ -142,7 +177,7 @@ lean_obj_res sdl_quit(lean_obj_arg w) {
     return lean_io_result_mk_ok(lean_box(0));
 }
 
-lean_obj_res sdl_create_window(lean_obj_arg title, uint32_t w, uint32_t h, uint32_t flags, lean_obj_arg world) {
+lean_obj_res sdl_create_window(b_lean_obj_arg title, uint32_t w, uint32_t h, uint32_t flags) {
     const char* title_str = lean_string_cstr(title);
     SDL_Window* g_window = SDL_CreateWindow(title_str, (int)w, (int)h, flags);
     if (g_window == NULL) {
@@ -152,7 +187,7 @@ lean_obj_res sdl_create_window(lean_obj_arg title, uint32_t w, uint32_t h, uint3
     return lean_io_result_mk_ok(external_window);
 }
 
-lean_obj_res sdl_create_renderer(lean_object * g_window, lean_obj_arg w) {
+lean_obj_res sdl_create_renderer(b_lean_obj_arg g_window) {
     SDL_Window* window = (SDL_Window*)lean_get_external_data(g_window);
     SDL_Renderer* g_renderer = SDL_CreateRenderer(window, NULL);
     if (g_renderer == NULL) {
@@ -162,36 +197,71 @@ lean_obj_res sdl_create_renderer(lean_object * g_window, lean_obj_arg w) {
     return lean_io_result_mk_ok(external_renderer);
 }
 
-lean_obj_res sdl_set_render_draw_color(lean_object * g_renderer, uint8_t r, uint8_t g, uint8_t b, uint8_t a, lean_obj_arg w) {
+lean_obj_res sdl_create_window_and_renderer(b_lean_obj_arg title, uint32_t w, uint32_t h, uint32_t flags) {
+    const char* title_str = lean_string_cstr(title);
+    SDL_Window* g_window = NULL;
+    SDL_Renderer* g_renderer = NULL;
+
+    //TODO: use SDL_GetError()
+    if (!SDL_CreateWindowAndRenderer(title_str, (int)w, (int)h, flags, &g_window, &g_renderer)) {
+        return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string("C: SDL_CreateWindowAndRenderer failed")));
+    }
+
+    // Wrap the SDL objects in Lean external objects
+    lean_object* external_window = lean_alloc_external(sdl_window_external_class, g_window);
+    lean_object* external_renderer = lean_alloc_external(sdl_renderer_external_class, g_renderer);
+
+    // Create a Prod (pair) - Prod.mk has tag 0, 2 object fields, 0 scalar fields
+    lean_object* pair = lean_alloc_ctor(0, 2, 0);
+    lean_ctor_set(pair, 0, external_window);    // first field (fst)
+    lean_ctor_set(pair, 1, external_renderer);  // second field (snd)
+
+    return lean_io_result_mk_ok(pair);
+}
+
+lean_obj_res sdl_set_render_draw_color(b_lean_obj_arg g_renderer, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
     SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(g_renderer);
     if (renderer == NULL) return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string("C: Renderer is NULL")));
     int32_t result = SDL_SetRenderDrawColor(renderer, r, g, b, a);
     return lean_io_result_mk_ok(lean_box_uint32(result));
 }
 
-lean_obj_res sdl_render_clear(lean_object * g_renderer, lean_obj_arg w) {
+lean_obj_res sdl_set_render_draw_color_float(b_lean_obj_arg renderer_obj, float r, float g, float b, float a) {
+    SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(renderer_obj);
+    if (renderer == NULL) return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string("C: Renderer is NULL")));
+    bool result = SDL_SetRenderDrawColorFloat(renderer, r, g, b, a);
+    return lean_io_result_mk_ok(lean_box(result));
+}
+
+lean_obj_res sdl_render_clear(b_lean_obj_arg g_renderer, lean_obj_arg w) {
     SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(g_renderer);
     if (renderer == NULL) return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string("C: Renderer is NULL")));
     int32_t result = SDL_RenderClear(renderer);
     return lean_io_result_mk_ok(lean_box_uint32(result));
 }
 
-lean_obj_res sdl_render_present(lean_object * g_renderer, lean_obj_arg w) {
+lean_obj_res sdl_render_present(b_lean_obj_arg g_renderer, lean_obj_arg w) {
     SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(g_renderer);
     if (renderer == NULL) return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string("C: Renderer is NULL")));
     SDL_RenderPresent(renderer);
     return lean_io_result_mk_ok(lean_box(0));
 }
 
-lean_obj_res sdl_render_fill_rect(lean_object * g_renderer, uint32_t x, uint32_t y, uint32_t w, uint32_t h, lean_obj_arg world) {
+lean_obj_res sdl_render_fill_rect(b_lean_obj_arg g_renderer, b_lean_obj_arg rect_obj) {
     SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(g_renderer);
     if (renderer == NULL) return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string("C: Renderer is NULL")));
+
+    int32_t x = (int32_t)lean_ctor_get_uint32(rect_obj, 0);
+    int32_t y = (int32_t)lean_ctor_get_uint32(rect_obj, 4);
+    int32_t w = (int32_t)lean_ctor_get_uint32(rect_obj, 8);
+    int32_t h = (int32_t)lean_ctor_get_uint32(rect_obj, 12);
+
     SDL_FRect rect = {(float)x, (float)y, (float)w, (float)h};
     int32_t result = SDL_RenderFillRect(renderer, &rect);
     return lean_io_result_mk_ok(lean_box_uint32(result));
 }
 
-lean_obj_res sdl_delay(uint32_t ms, lean_obj_arg w) {
+lean_obj_res sdl_delay(uint32_t ms) {
     SDL_Delay(ms);
     return lean_io_result_mk_ok(lean_box(0));
 }
@@ -215,7 +285,7 @@ lean_obj_res sdl_get_key_state(uint32_t scancode, lean_obj_arg w) {
 
 // TEXTURE SUPPORT
 // Assuming 64x64 texture
-lean_obj_res sdl_image_load(lean_obj_arg filename, lean_obj_arg w) {
+lean_obj_res sdl_image_load(b_lean_obj_arg filename, lean_obj_arg w) {
     const char* filename_str = lean_string_cstr(filename);
     SDL_Surface* surface = IMG_Load(filename_str);
     if (!surface) {
@@ -225,7 +295,45 @@ lean_obj_res sdl_image_load(lean_obj_arg filename, lean_obj_arg w) {
     return lean_io_result_mk_ok(external_surface);
 }
 
-lean_obj_res sdl_create_texture_from_surface(lean_object * g_renderer, lean_object * g_surface, lean_obj_arg w) {
+uint32_t sdl_Surface_get_format(b_lean_obj_arg surface_obj) {
+    SDL_Surface* surface = (SDL_Surface*)lean_get_external_data(surface_obj);
+    return (uint32_t)surface->format;
+}
+
+int32_t sdl_Surface_get_w(b_lean_obj_arg surface_obj) {
+    SDL_Surface* surface = (SDL_Surface*)lean_get_external_data(surface_obj);
+    return (int32_t)surface->w;
+}
+
+int32_t sdl_Surface_get_h(b_lean_obj_arg surface_obj) {
+    SDL_Surface* surface = (SDL_Surface*)lean_get_external_data(surface_obj);
+    return (int32_t)surface->h;
+}
+
+lean_object* sdl_Surface_get_pixels(b_lean_obj_arg surface_obj) {
+    SDL_Surface* surface = (SDL_Surface*)lean_get_external_data(surface_obj);
+    void* pixels = surface->pixels;
+    lean_object* external_pixels = lean_alloc_external(sdl_pixels_external_class, pixels);
+    return external_pixels;  // Not wrapped in IO - Lean expects Pixels directly
+}
+
+int32_t sdl_Surface_get_pitch(b_lean_obj_arg surface_obj) {
+    SDL_Surface* surface = (SDL_Surface*)lean_get_external_data(surface_obj);
+    return (int32_t)surface->pitch;
+}
+
+lean_obj_res sdl_create_texture(b_lean_obj_arg renderer_obj, uint32_t pixel_format, uint32_t texture_access, uint32_t width, uint32_t height) {
+    SDL_Renderer * renderer = (SDL_Renderer *)lean_get_external_data(renderer_obj);
+    SDL_Texture* texture = SDL_CreateTexture(renderer, pixel_format, (SDL_TextureAccess)texture_access, width, height);
+
+    if (!texture) {
+        return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
+    }
+    lean_object* external_texture = lean_alloc_external(sdl_texture_external_class, texture);
+    return lean_io_result_mk_ok(external_texture);
+}
+
+lean_obj_res sdl_create_texture_from_surface(b_lean_obj_arg g_renderer, b_lean_obj_arg g_surface, lean_obj_arg w) {
     SDL_Renderer * renderer = (SDL_Renderer *)lean_get_external_data(g_renderer);
     SDL_Surface * surface = (SDL_Surface *)lean_get_external_data(g_surface);
     if (!renderer || !surface) 
@@ -243,7 +351,15 @@ lean_obj_res sdl_create_texture_from_surface(lean_object * g_renderer, lean_obje
     return lean_io_result_mk_ok(external_texture);
 }
 
-lean_obj_res sdl_load_font(lean_obj_arg fontname, uint32_t font_size, lean_obj_arg w) {
+lean_obj_res sdl_update_texture(b_lean_obj_arg texture_obj, b_lean_obj_arg pixels_obj, int32_t pitch) {
+    SDL_Texture * texture = (SDL_Texture *)lean_get_external_data(texture_obj);
+    void* pixels = lean_get_external_data(pixels_obj);  // Pixels is void*, not SDL_Surface*
+
+    bool result = SDL_UpdateTexture(texture, NULL, pixels, pitch);
+    return lean_io_result_mk_ok(lean_box(result));
+}
+
+lean_obj_res sdl_load_font(b_lean_obj_arg fontname, uint32_t font_size, lean_obj_arg w) {
     const char* fontname_str = lean_string_cstr(fontname);
     TTF_Font* font = TTF_OpenFont(fontname_str, font_size);
     if (!font) {
@@ -255,7 +371,7 @@ lean_obj_res sdl_load_font(lean_obj_arg fontname, uint32_t font_size, lean_obj_a
     return lean_io_result_mk_ok(external_font);
 }
 
-lean_obj_res sdl_create_track(lean_object* g_mixer, lean_obj_arg w) {
+lean_obj_res sdl_create_track(b_lean_obj_arg g_mixer, lean_obj_arg w) {
     MIX_Mixer* mixer = (MIX_Mixer*)lean_get_external_data(g_mixer);
     MIX_Track* mixerTrack = MIX_CreateTrack(mixer);
     if (!mixerTrack) {
@@ -268,7 +384,7 @@ lean_obj_res sdl_create_track(lean_object* g_mixer, lean_obj_arg w) {
 }
 
 
-lean_obj_res sdl_load_audio(lean_object* g_mixer, lean_obj_arg filename, lean_obj_arg w) {
+lean_obj_res sdl_load_audio(b_lean_obj_arg g_mixer, b_lean_obj_arg filename, lean_obj_arg w) {
     MIX_Mixer* mixer = (MIX_Mixer*)lean_get_external_data(g_mixer);
     const char* filename_str = lean_string_cstr(filename);
     MIX_Audio* audio = MIX_LoadAudio(mixer, filename_str, false);
@@ -281,7 +397,7 @@ lean_obj_res sdl_load_audio(lean_object* g_mixer, lean_obj_arg filename, lean_ob
     return lean_io_result_mk_ok(external_audio);
 }
 
-lean_obj_res sdl_set_track_audio(lean_object* g_track, lean_object* g_audio, lean_obj_arg w) {
+lean_obj_res sdl_set_track_audio(b_lean_obj_arg g_track, b_lean_obj_arg g_audio, lean_obj_arg w) {
     MIX_Track* track = (MIX_Track*)lean_get_external_data(g_track);
     MIX_Audio* audio = (MIX_Audio*)lean_get_external_data(g_audio);
     if (!track || !audio) {
@@ -291,7 +407,7 @@ lean_obj_res sdl_set_track_audio(lean_object* g_track, lean_object* g_audio, lea
     return lean_io_result_mk_ok(lean_box_uint32(result));
 }
 
-lean_obj_res sdl_play_track(lean_object* g_track, lean_obj_arg w) {
+lean_obj_res sdl_play_track(b_lean_obj_arg g_track, lean_obj_arg w) {
     MIX_Track* track = (MIX_Track*)lean_get_external_data(g_track);
     if (!track) {
         return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string("C: Invalid track or audio")));
@@ -301,7 +417,7 @@ lean_obj_res sdl_play_track(lean_object* g_track, lean_obj_arg w) {
 }
 
 // TODO: VERY inefficient text rendering, re-renders entire text each time
-lean_obj_res sdl_text_to_surface(lean_object* g_renderer, lean_object* g_font, lean_obj_arg text, uint32_t dst_x, uint32_t dst_y, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha, lean_obj_arg w) {
+lean_obj_res sdl_text_to_surface(b_lean_obj_arg g_renderer, b_lean_obj_arg g_font, b_lean_obj_arg text, uint32_t dst_x, uint32_t dst_y, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha, lean_obj_arg w) {
     if (!g_renderer || !g_font) return lean_io_result_mk_error(lean_mk_string("C: Renderer or Font is NULL"));
     SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(g_renderer);
     TTF_Font* font = (TTF_Font*)lean_get_external_data(g_font);
@@ -319,21 +435,21 @@ lean_obj_res sdl_text_to_surface(lean_object* g_renderer, lean_object* g_font, l
 }
 
 
-lean_obj_res sdl_get_texture_width(lean_object * g_texture, lean_obj_arg w) {
+lean_obj_res sdl_get_texture_width(b_lean_obj_arg g_texture, lean_obj_arg w) {
     SDL_Texture* texture = (SDL_Texture*)lean_get_external_data(g_texture);
 
     SDL_PropertiesID messageTexProps = SDL_GetTextureProperties(texture);
 
     // get number property always returns a signed 64-bit integer
     int64_t width = SDL_GetNumberProperty(messageTexProps, SDL_PROP_TEXTURE_WIDTH_NUMBER, 0);
-    
+
     // however, there seems to be no way to return int64_t directly to Lean
     // so we box it as uint64_t instead
     // TODO: figure out a way to return int64_t directly
     return lean_io_result_mk_ok(lean_box_uint64(width));
 }
 
-lean_obj_res sdl_get_texture_height(lean_object * g_texture, lean_obj_arg w) {
+lean_obj_res sdl_get_texture_height(b_lean_obj_arg g_texture, lean_obj_arg w) {
     SDL_Texture* texture = (SDL_Texture*)lean_get_external_data(g_texture);
 
     SDL_PropertiesID messageTexProps = SDL_GetTextureProperties(texture);
@@ -342,7 +458,7 @@ lean_obj_res sdl_get_texture_height(lean_object * g_texture, lean_obj_arg w) {
     return lean_io_result_mk_ok(lean_box_uint64(height));
 }
 
-lean_obj_res sdl_render_texture(lean_object* g_renderer, lean_object * g_texture, int64_t src_x, int64_t src_y, int64_t src_width, int64_t src_height, int64_t dst_x, int64_t dst_y, int64_t dst_width, int64_t dst_height, lean_obj_arg w) {
+lean_obj_res sdl_render_texture(b_lean_obj_arg g_renderer, b_lean_obj_arg g_texture, int64_t src_x, int64_t src_y, int64_t src_width, int64_t src_height, int64_t dst_x, int64_t dst_y, int64_t dst_width, int64_t dst_height, lean_obj_arg w) {
     if (!g_renderer || !g_texture) return lean_io_result_mk_ok(lean_box_uint32(-1));
 
     SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(g_renderer);
@@ -355,7 +471,30 @@ lean_obj_res sdl_render_texture(lean_object* g_renderer, lean_object * g_texture
     return lean_io_result_mk_ok(lean_box_uint32(SDL_RenderTexture(renderer, texture, &src_rect, &dst_rect)));
 }
 
-lean_obj_res sdl_render_entire_texture(lean_object* g_renderer, lean_object * g_texture, int64_t dst_x, int64_t dst_y, int64_t dst_width, int64_t dst_height, lean_obj_arg w) {
+lean_obj_res sdl_render_texture_rect(b_lean_obj_arg renderer_obj, b_lean_obj_arg texture_obj, b_lean_obj_arg src, b_lean_obj_arg dst) {
+    if (!renderer_obj || !texture_obj) {
+        return lean_io_result_mk_ok(lean_box(false));
+    }
+
+    SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(renderer_obj);
+    SDL_Texture* texture = (SDL_Texture*)lean_get_external_data(texture_obj);
+
+    float sx = lean_ctor_get_float(src, 0);
+    float sy = lean_ctor_get_float(src, 4);
+    float sw = lean_ctor_get_float(src, 8);
+    float sh = lean_ctor_get_float(src, 12);
+    SDL_FRect src_rect = { .x = sx, .y = sy, .w = sw, .h = sh };
+
+    float dx = lean_ctor_get_float(dst, 0);
+    float dy = lean_ctor_get_float(dst, 4);
+    float dw = lean_ctor_get_float(dst, 8);
+    float dh = lean_ctor_get_float(dst, 12);
+    SDL_FRect dst_rect = { .x = dx, .y = dy, .w = dw, .h = dh };
+
+    return lean_io_result_mk_ok(lean_box(SDL_RenderTexture(renderer, texture, &src_rect, &dst_rect)));
+}
+
+lean_obj_res sdl_render_entire_texture(b_lean_obj_arg g_renderer, b_lean_obj_arg g_texture, int64_t dst_x, int64_t dst_y, int64_t dst_width, int64_t dst_height, lean_obj_arg w) {
     if (!g_renderer || !g_texture) return lean_io_result_mk_ok(lean_box_uint32(-1));
 
     SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(g_renderer);
@@ -366,6 +505,130 @@ lean_obj_res sdl_render_entire_texture(lean_object* g_renderer, lean_object * g_
     return lean_io_result_mk_ok(lean_box_uint32(SDL_RenderTexture(renderer, texture, NULL, &dst_rect)));
 }
 
+lean_obj_res sdl_render_texture_fullscreen(b_lean_obj_arg renderer_obj, b_lean_obj_arg texture_obj) {
+    if (!renderer_obj || !texture_obj) return lean_io_result_mk_ok(lean_box(false));
+
+    SDL_Renderer* renderer = (SDL_Renderer*)lean_get_external_data(renderer_obj);
+    SDL_Texture* texture = (SDL_Texture*)lean_get_external_data(texture_obj);
+
+    // NULL, NULL stretches texture to fill the entire render target
+    bool result = SDL_RenderTexture(renderer, texture, NULL, NULL);
+    return lean_io_result_mk_ok(lean_box(result));
+}
+
+
+lean_obj_res sdl_get_cameras() {
+    int count = 0;
+    SDL_CameraID* devices = SDL_GetCameras(&count);
+    if (devices == NULL) {
+        return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
+    }
+
+    SDL_Log("SDL_CameraID devices count %d\n", count);
+
+    // Build Lean list by iterating backwards through the array
+    // List.nil has constructor tag 0, 0 object fields, 0 scalar fields
+    lean_object* list = lean_alloc_ctor(0, 0, 0);  // Start with empty list (nil)
+
+    for (int i = count - 1; i >= 0; i--) {
+        // Box the camera ID (SDL_CameraID is a uint32_t)
+        lean_object* camera_id = lean_box_uint32(devices[i]);
+
+        // List.cons has constructor tag 1, 2 object fields (head, tail)
+        lean_object* cons = lean_alloc_ctor(1, 2, 0);
+        lean_ctor_set(cons, 0, camera_id);  // head
+        lean_ctor_set(cons, 1, list);        // tail
+
+        list = cons;
+    }
+
+    SDL_free(devices);  // Free the SDL array
+
+    return lean_io_result_mk_ok(list);
+}
+
+
+//TODO: implement 2nd SDL_CameraSpec arg
+lean_obj_res sdl_open_camera(uint32_t instance_id) {
+
+    SDL_Camera* camera = SDL_OpenCamera(instance_id, NULL);
+    if (camera == NULL) {
+        return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
+    }
+    lean_object* external_camera = lean_alloc_external(sdl_camera_external_class, camera);
+    return lean_io_result_mk_ok(external_camera);
+}
+
+void print_lean_object(lean_object* obj) {
+    printf("obj->m_rc: %d\n", obj->m_rc);
+    printf("obj->m_cs_sz: %u\n", obj->m_cs_sz);
+    printf("obj->m_other: %u\n", obj->m_other);
+    printf("obj->m_tag: %u\n", obj->m_tag);
+}
+
+lean_obj_res sdl_get_camera_format(b_lean_obj_arg camera_obj) {
+    SDL_Camera* camera = (SDL_Camera*)lean_get_external_data(camera_obj);
+    SDL_CameraSpec* spec = (SDL_CameraSpec*) malloc(sizeof(SDL_CameraSpec));
+    bool result = SDL_GetCameraFormat(camera, spec);
+    if (!result) {
+        return lean_io_result_mk_error(lean_mk_string(SDL_GetError()));
+    }
+    lean_object* camera_spec = lean_alloc_external(sdl_camera_spec_external_class, spec);
+    return lean_io_result_mk_ok(camera_spec);
+}
+
+uint32_t sdl_CameraSpec_get_width(b_lean_obj_arg camera_spec_obj) {
+    SDL_CameraSpec* camera_spec = (SDL_CameraSpec*)lean_get_external_data(camera_spec_obj);
+    uint32_t width = (uint32_t)camera_spec->width;
+    return width;
+}
+
+uint32_t sdl_CameraSpec_get_height(b_lean_obj_arg camera_spec_obj) {
+    SDL_CameraSpec* camera_spec = (SDL_CameraSpec*)lean_get_external_data(camera_spec_obj);
+    uint32_t height = (uint32_t)camera_spec->height;
+    return height;
+}
+
+uint32_t sdl_CameraSpec_get_framerate_numerator(b_lean_obj_arg camera_spec_obj) {
+    SDL_CameraSpec* camera_spec = (SDL_CameraSpec*)lean_get_external_data(camera_spec_obj);
+    uint32_t framerate_numerator = (uint32_t)camera_spec->framerate_numerator;
+    return framerate_numerator;
+}
+
+uint32_t sdl_CameraSpec_get_framerate_denominator(b_lean_obj_arg camera_spec_obj) {
+    SDL_CameraSpec* camera_spec = (SDL_CameraSpec*)lean_get_external_data(camera_spec_obj);
+    uint32_t framerate_denominator = (uint32_t)camera_spec->framerate_denominator;
+    return framerate_denominator;
+}
+
+lean_obj_res sdl_acquire_camera_frame(b_lean_obj_arg camera_obj) {
+    SDL_Camera* camera = (SDL_Camera*)lean_get_external_data(camera_obj);
+    uint64_t timestamp = 0;
+    SDL_Surface* frame = SDL_AcquireCameraFrame(camera, &timestamp);
+    if (!frame) {
+        // Return Option.none (tag 0, 0 object fields, 0 scalar fields)
+        lean_object* none = lean_alloc_ctor(0, 0, 0);
+        return lean_io_result_mk_ok(none);
+    }
+    lean_object* external_surface = lean_alloc_external(sdl_camera_frame_external_class, frame);
+    // Return Option.some frame (tag 1, 1 object field)
+    lean_object* some = lean_alloc_ctor(1, 1, 0);
+    lean_ctor_set(some, 0, external_surface);
+    return lean_io_result_mk_ok(some);
+}
+
+lean_obj_res sdl_release_camera_frame(b_lean_obj_arg camera_obj, lean_obj_arg frame_obj) {
+    SDL_Camera* camera = (SDL_Camera*)lean_get_external_data(camera_obj);
+    SDL_Surface* frame = (SDL_Surface*)lean_get_external_data(frame_obj);
+
+    SDL_ReleaseCameraFrame(camera, frame);
+
+    // frame_obj is lean_obj_arg (ownership transferred), so we must release it
+    // The finalizer is a no-op, so this is safe after SDL_ReleaseCameraFrame
+    lean_dec(frame_obj);
+
+    return lean_io_result_mk_ok(lean_box(0));
+}
 
 
 // Mouse support (caching avoids redundant SDL calls within the same frame)
@@ -393,7 +656,7 @@ lean_obj_res sdl_get_mouse_state(lean_obj_arg w) {
     return lean_io_result_mk_ok(lean_box_uint64(packed));
 }
 
-lean_obj_res sdl_set_relative_mouse_mode(lean_object* g_window, bool enabled, lean_obj_arg w) {
+lean_obj_res sdl_set_relative_mouse_mode(b_lean_obj_arg g_window, bool enabled, lean_obj_arg w) {
     SDL_Window* window = (SDL_Window*)lean_get_external_data(g_window);
     if (window == NULL) return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string("C: Window is NULL")));
     int32_t result = SDL_SetWindowRelativeMouseMode(window, enabled);

@@ -177,3 +177,10 @@ lean_exe «test-app» where
   moreLinkObjs := #[libleansdl]
   moreLinkLibs := libList
   moreLinkArgs := if !Platform.isWindows then #["-Wl,--allow-shlib-undefined", "-Wl,-rpath=$ORIGIN"] else #[]
+
+lean_exe «webcam-app» where
+    root := `WebcamApp
+    moreLinkObjs := #[libleansdl]
+    moreLinkLibs := libList
+    moreLinkArgs := if !Platform.isWindows then #["-Wl,--allow-shlib-undefined", "-Wl,-rpath=$ORIGIN"] else #[]
+
